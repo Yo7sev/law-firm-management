@@ -1,0 +1,27 @@
+﻿# Secrets
+.env
+.env.*
+!.env.example
+
+# Django
+*.pyc
+__pycache__/
+db.sqlite3
+media/
+legal_documents/
+staticfiles/
+
+# Next.js / Node
+node_modules/
+.next/
+out/
+.vercel
+
+# Misc
+*.log
+test-upload.txt
+downloaded-test-upload.txt
+
+# OS/editor junk
+.DS_Store
+.vscode/
