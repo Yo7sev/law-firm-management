@@ -2,18 +2,19 @@ import json
 
 from django.contrib.auth import authenticate, login, logout
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST
 
 from .models import User
 
 
+@ensure_csrf_cookie
 @require_GET
 def csrf_token(request):
     return JsonResponse(
         {
             "success": True,
-            "message": "CSRF endpoint is available.",
+            "message": "CSRF cookie initialized.",
         }
     )
 
