@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 type User = {
@@ -75,35 +76,35 @@ const modules = [
     title: "Clients",
     description:
       "Manage clients, contact information, and relationships.",
-    href: "#clients",
+    href: "/lawyer/clients",
     icon: "C",
   },
   {
     title: "Cases",
     description:
       "Review active cases, case details, and legal matters.",
-    href: "#cases",
+    href: "/lawyer/cases",
     icon: "⚖",
   },
   {
     title: "Hearings",
     description:
       "Track upcoming hearings, dates, courts, and schedules.",
-    href: "#hearings",
+    href: "/hearings",
     icon: "H",
   },
   {
     title: "Documents",
     description:
       "Access and organize case-related legal documents.",
-    href: "#documents",
+    href: "/lawyer/documents",
     icon: "D",
   },
   {
     title: "Tasks",
     description:
       "Manage assignments, deadlines, and pending work.",
-    href: "#tasks",
+    href: "/lawyer/tasks",
     icon: "T",
   },
   {
@@ -220,6 +221,8 @@ function getStatusClass(status: string) {
 }
 
 export default function LawyerDashboard() {
+  const router = useRouter();
+
   const [user, setUser] = useState<User | null>(null);
   const [dashboard, setDashboard] =
     useState<DashboardResponse["dashboard"] | null>(null);
@@ -256,17 +259,16 @@ export default function LawyerDashboard() {
         const meData: MeResponse = await meResponse.json();
 
         if (!meData.authenticated || !meData.user) {
-          window.location.href = "/login";
+          router.push("/login");
           return;
         }
 
         if (!dashboardResponse.ok) {
           if (
             dashboardResponse.status === 302 ||
-            dashboardResponse.status === 401 ||
-            dashboardResponse.status === 403
+            dashboardResponse.status === 401
           ) {
-            window.location.href = "/login";
+            router.push("/login");
             return;
           }
 
@@ -310,7 +312,7 @@ export default function LawyerDashboard() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [router]);
 
   async function handleLogout() {
     try {
@@ -319,8 +321,12 @@ export default function LawyerDashboard() {
         credentials: "include",
       });
     } finally {
-      window.location.href = "/login";
+      router.push("/login");
     }
+  }
+
+  function openClients() {
+    router.push("/lawyer/clients");
   }
 
   const displayName =
@@ -367,36 +373,37 @@ export default function LawyerDashboard() {
                   Dashboard
                 </Link>
 
-                <Link
-                  href="#clients"
-                  className="block rounded-lg px-3 py-2.5 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
+                <button
+                  type="button"
+                  onClick={openClients}
+                  className="block w-full rounded-lg px-3 py-2.5 text-left text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
                 >
                   Clients
-                </Link>
+                </button>
 
                 <Link
-                  href="#cases"
+                  href="/lawyer/cases"
                   className="block rounded-lg px-3 py-2.5 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
                 >
                   Cases
                 </Link>
 
                 <Link
-                  href="#hearings"
+                  href="/hearings"
                   className="block rounded-lg px-3 py-2.5 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
                 >
                   Hearings
                 </Link>
 
                 <Link
-                  href="#documents"
+                  href="/lawyer/documents"
                   className="block rounded-lg px-3 py-2.5 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
                 >
                   Documents
                 </Link>
 
                 <Link
-                  href="#tasks"
+                  href="/lawyer/tasks"
                   className="block rounded-lg px-3 py-2.5 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
                 >
                   Tasks
@@ -538,7 +545,11 @@ export default function LawyerDashboard() {
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
+              <button
+                type="button"
+                onClick={openClients}
+                className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 text-left transition hover:border-slate-700 hover:bg-slate-900"
+              >
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-slate-500">
                     Clients
@@ -556,7 +567,7 @@ export default function LawyerDashboard() {
                 <p className="mt-2 text-xs text-slate-600">
                   Clients connected to your workspace
                 </p>
-              </div>
+              </button>
 
               <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
                 <div className="flex items-center justify-between">
@@ -611,31 +622,62 @@ export default function LawyerDashboard() {
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {modules.map((module) => (
-                  <Link
-                    key={module.title}
-                    href={module.href}
-                    className="group rounded-2xl border border-slate-800 bg-slate-900/40 p-5 transition hover:border-slate-700 hover:bg-slate-900"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-800 bg-slate-950 text-sm font-semibold text-blue-400">
-                        {module.icon}
+                {modules.map((module) => {
+                  if (module.title === "Clients") {
+                    return (
+                      <button
+                        key={module.title}
+                        type="button"
+                        onClick={openClients}
+                        className="group rounded-2xl border border-slate-800 bg-slate-900/40 p-5 text-left transition hover:border-slate-700 hover:bg-slate-900"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-800 bg-slate-950 text-sm font-semibold text-blue-400">
+                            {module.icon}
+                          </div>
+
+                          <span className="text-slate-700 transition group-hover:text-blue-400">
+                            →
+                          </span>
+                        </div>
+
+                        <h3 className="mt-5 text-base font-semibold">
+                          {module.title}
+                        </h3>
+
+                        <p className="mt-2 text-sm leading-6 text-slate-500">
+                          {module.description}
+                        </p>
+                      </button>
+                    );
+                  }
+
+                  return (
+                    <Link
+                      key={module.title}
+                      href={module.href}
+                      className="group rounded-2xl border border-slate-800 bg-slate-900/40 p-5 transition hover:border-slate-700 hover:bg-slate-900"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-800 bg-slate-950 text-sm font-semibold text-blue-400">
+                          {module.icon}
+                        </div>
+
+                        <span className="text-slate-700 transition group-hover:text-blue-400">
+                          →
+                        </span>
                       </div>
 
-                      <span className="text-slate-700 transition group-hover:text-blue-400">
-                        →
-                      </span>
-                    </div>
+                      <h3 className="mt-5 text-base font-semibold">
+                        {module.title}
+                      </h3>
 
-                    <h3 className="mt-5 text-base font-semibold">
-                      {module.title}
-                    </h3>
-
-                    <p className="mt-2 text-sm leading-6 text-slate-500">
-                      {module.description}
-                    </p>
-                  </Link>
-                ))}
+                      <p className="mt-2 text-sm leading-6 text-slate-500">
+                        {module.description}
+                      </p>
+                    </Link>
+                  );
+                })}
               </div>
             </div>
 
@@ -655,9 +697,12 @@ export default function LawyerDashboard() {
                     </p>
                   </div>
 
-                  <span className="text-xs text-slate-600">
-                    {dashboard?.recent_cases.length ?? 0}
-                  </span>
+                  <Link
+                    href="/lawyer/cases"
+                    className="text-xs text-blue-400 transition hover:text-blue-300"
+                  >
+                    View all →
+                  </Link>
                 </div>
 
                 <div className="p-4">
@@ -676,9 +721,10 @@ export default function LawyerDashboard() {
                   ) : dashboard?.recent_cases.length ? (
                     <div className="space-y-3">
                       {dashboard.recent_cases.map((caseItem) => (
-                        <div
+                        <Link
                           key={caseItem.id}
-                          className="rounded-xl border border-slate-800 bg-slate-950/50 p-4"
+                          href={`/lawyer/cases?case=${caseItem.id}`}
+                          className="block rounded-xl border border-slate-800 bg-slate-950/50 p-4 transition hover:border-slate-700 hover:bg-slate-900"
                         >
                           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div className="min-w-0">
@@ -725,7 +771,7 @@ export default function LawyerDashboard() {
                               {formatDate(caseItem.opening_date)}
                             </span>
                           </div>
-                        </div>
+                        </Link>
                       ))}
                     </div>
                   ) : (
@@ -757,9 +803,12 @@ export default function LawyerDashboard() {
                     </p>
                   </div>
 
-                  <span className="text-xs text-slate-600">
-                    {dashboard?.upcoming_hearings.length ?? 0}
-                  </span>
+                  <Link
+                    href="/hearings"
+                    className="text-xs text-blue-400 transition hover:text-blue-300"
+                  >
+                    View all →
+                  </Link>
                 </div>
 
                 <div className="p-4">
@@ -870,9 +919,12 @@ export default function LawyerDashboard() {
                   </p>
                 </div>
 
-                <span className="text-xs text-slate-600">
-                  {dashboard?.recent_documents.length ?? 0}
-                </span>
+                <Link
+                  href="/lawyer/documents"
+                  className="text-xs text-blue-400 transition hover:text-blue-300"
+                >
+                  View all →
+                </Link>
               </div>
 
               <div className="p-4">
@@ -996,3 +1048,4 @@ export default function LawyerDashboard() {
     </main>
   );
 }
+

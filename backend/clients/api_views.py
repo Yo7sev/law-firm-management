@@ -1,13 +1,45 @@
-
 import json
+from datetime import date
 
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
 from django.db.models import Q
+from django.db.models.deletion import ProtectedError
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_http_methods
 
 from .models import Client
+
+
+def parse_date_of_birth(value):
+    if not value:
+        return None
+
+    if isinstance(value, date):
+        return value
+
+    if isinstance(value, str):
+        try:
+            return date.fromisoformat(value)
+        except ValueError:
+            return None
+
+    return None
+
+
+def serialize_date(value):
+    if not value:
+        return None
+
+    if isinstance(value, date):
+        return value.isoformat()
+
+    if isinstance(value, str):
+        return value
+
+    return str(value)
 
 
 def serialize_client(client):
@@ -21,10 +53,8 @@ def serialize_client(client):
         "client_type_display": client.get_client_type_display(),
         "email": client.email,
         "address": client.address,
-        "date_of_birth": (
-            client.date_of_birth.isoformat()
-            if client.date_of_birth
-            else None
+        "date_of_birth": serialize_date(
+            client.date_of_birth
         ),
         "notes": client.notes,
         "created_by": {
@@ -55,7 +85,10 @@ def clients_list_create(request):
 
     if request.method == "GET":
         search = request.GET.get("search", "").strip()
-        client_type = request.GET.get("client_type", "").strip()
+        client_type = request.GET.get(
+            "client_type",
+            "",
+        ).strip()
 
         clients = Client.objects.select_related(
             "created_by",
@@ -67,7 +100,8 @@ def clients_list_create(request):
         ):
             if user.role == "lawyer":
                 clients = clients.filter(
-                    cases__assigned_lawyer=user,
+                    Q(created_by=user)
+                    | Q(cases__assigned_lawyer=user)
                 ).distinct()
             else:
                 clients = clients.filter(
@@ -91,14 +125,16 @@ def clients_list_create(request):
             "-created_at",
         )
 
+        serialized_clients = [
+            serialize_client(client)
+            for client in clients
+        ]
+
         return JsonResponse(
             {
                 "success": True,
-                "clients": [
-                    serialize_client(client)
-                    for client in clients
-                ],
-                "count": clients.count(),
+                "clients": serialized_clients,
+                "count": len(serialized_clients),
             }
         )
 
@@ -142,7 +178,10 @@ def clients_list_create(request):
     ).strip()
 
     client_type = str(
-        data.get("client_type", Client.ClientType.INDIVIDUAL)
+        data.get(
+            "client_type",
+            Client.ClientType.INDIVIDUAL,
+        )
     ).strip()
 
     email = str(
@@ -153,7 +192,9 @@ def clients_list_create(request):
         data.get("address", "")
     ).strip()
 
-    date_of_birth = data.get("date_of_birth")
+    date_of_birth_raw = data.get(
+        "date_of_birth"
+    )
 
     notes = str(
         data.get("notes", "")
@@ -200,6 +241,24 @@ def clients_list_create(request):
             status=400,
         )
 
+    date_of_birth = parse_date_of_birth(
+        date_of_birth_raw
+    )
+
+    if (
+        date_of_birth_raw
+        and date_of_birth is None
+    ):
+        return JsonResponse(
+            {
+                "success": False,
+                "message": (
+                    "Please enter a valid date of birth."
+                ),
+            },
+            status=400,
+        )
+
     if Client.objects.filter(
         national_id=national_id,
     ).exists():
@@ -215,16 +274,16 @@ def clients_list_create(request):
         )
 
     if email:
-        from django.core.validators import validate_email
-        from django.core.exceptions import ValidationError
-
         try:
             validate_email(email)
         except ValidationError:
             return JsonResponse(
                 {
                     "success": False,
-                    "message": "Please enter a valid email address.",
+                    "message": (
+                        "Please enter a valid "
+                        "email address."
+                    ),
                 },
                 status=400,
             )
@@ -237,7 +296,7 @@ def clients_list_create(request):
         client_type=client_type,
         email=email,
         address=address,
-        date_of_birth=date_of_birth or None,
+        date_of_birth=date_of_birth,
         notes=notes,
         created_by=user,
     )
@@ -316,7 +375,9 @@ def client_detail(request, client_id):
                         "case_number": case.case_number,
                         "title": case.title,
                         "status": case.status,
-                        "status_display": case.get_status_display(),
+                        "status_display": (
+                            case.get_status_display()
+                        ),
                         "priority": case.priority,
                         "priority_display": (
                             case.get_priority_display()
@@ -324,6 +385,8 @@ def client_detail(request, client_id):
                         "court": case.court,
                         "opening_date": (
                             case.opening_date.isoformat()
+                            if case.opening_date
+                            else None
                         ),
                         "assigned_lawyer": (
                             case.assigned_lawyer.email
@@ -349,7 +412,22 @@ def client_detail(request, client_id):
         )
 
     if request.method == "DELETE":
-        client.delete()
+        try:
+            client.delete()
+        except ProtectedError:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": (
+                        "This client cannot be deleted "
+                        "because they have related records "
+                        "such as documents or other protected "
+                        "legal records. Please remove or "
+                        "reassign those records first."
+                    ),
+                },
+                status=409,
+            )
 
         return JsonResponse(
             {
@@ -382,23 +460,39 @@ def client_detail(request, client_id):
     }
 
     for field in allowed_fields:
-        if field in data:
-            value = data[field]
+        if field not in data:
+            continue
 
-            if field == "date_of_birth":
-                setattr(
-                    client,
-                    field,
-                    value or None,
+        value = data[field]
+
+        if field == "date_of_birth":
+            parsed_date = parse_date_of_birth(value)
+
+            if value and parsed_date is None:
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "message": (
+                            "Please enter a valid "
+                            "date of birth."
+                        ),
+                    },
+                    status=400,
                 )
-            else:
-                setattr(
-                    client,
-                    field,
-                    str(value).strip()
-                    if value is not None
-                    else "",
-                )
+
+            setattr(
+                client,
+                field,
+                parsed_date,
+            )
+        else:
+            setattr(
+                client,
+                field,
+                str(value).strip()
+                if value is not None
+                else "",
+            )
 
     if not client.full_name:
         return JsonResponse(
@@ -457,6 +551,21 @@ def client_detail(request, client_id):
             status=409,
         )
 
+    if client.email:
+        try:
+            validate_email(client.email)
+        except ValidationError:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": (
+                        "Please enter a valid "
+                        "email address."
+                    ),
+                },
+                status=400,
+            )
+
     client.save()
 
     return JsonResponse(
@@ -466,4 +575,3 @@ def client_detail(request, client_id):
             "client": serialize_client(client),
         }
     )
-

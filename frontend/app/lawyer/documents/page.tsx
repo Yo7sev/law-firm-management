@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   ChangeEvent,
   FormEvent,
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -71,6 +72,14 @@ type CasesResponse = {
   success: boolean;
   cases: Case[];
   message?: string;
+};
+
+type CsrfResponse = {
+  success: boolean;
+  csrfToken?: string;
+  message?: string;
+  detail?: string;
+  error?: string;
 };
 
 type UploadUrlResponse = {
@@ -212,6 +221,21 @@ function getFileExtension(filename: string) {
   return parts[parts.length - 1].toUpperCase().slice(0, 5);
 }
 
+async function readApiError(response: Response) {
+  try {
+    const data = await response.json();
+
+    return (
+      data.message ||
+      data.detail ||
+      data.error ||
+      `Request failed with status ${response.status}.`
+    );
+  } catch {
+    return `Request failed with status ${response.status}.`;
+  }
+}
+
 export default function LawyerDocumentsPage() {
   const router = useRouter();
 
@@ -231,14 +255,12 @@ export default function LawyerDocumentsPage() {
   const [typeFilter, setTypeFilter] = useState("");
 
   const [showUploadModal, setShowUploadModal] = useState(false);
-
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadTitle, setUploadTitle] = useState("");
   const [uploadClientId, setUploadClientId] = useState("");
   const [uploadCaseId, setUploadCaseId] = useState("");
   const [uploadDocumentType, setUploadDocumentType] = useState("other");
   const [uploadDescription, setUploadDescription] = useState("");
-
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
@@ -248,16 +270,41 @@ export default function LawyerDocumentsPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingDocument, setEditingDocument] =
     useState<LegalDocument | null>(null);
-
   const [editTitle, setEditTitle] = useState("");
   const [editClientId, setEditClientId] = useState("");
   const [editCaseId, setEditCaseId] = useState("");
   const [editDocumentType, setEditDocumentType] = useState("other");
   const [editDescription, setEditDescription] = useState("");
-
   const [savingEdit, setSavingEdit] = useState(false);
 
-  async function loadDocuments() {
+  const initializeCsrf = useCallback(async (): Promise<string> => {
+    const response = await fetch("/api/auth/csrf/", {
+      method: "GET",
+      credentials: "include",
+      cache: "no-store",
+    });
+
+    if (response.status === 401) {
+      router.push("/login");
+      throw new Error("Your session has expired. Please log in again.");
+    }
+
+    if (!response.ok) {
+      throw new Error(await readApiError(response));
+    }
+
+    const data: CsrfResponse = await response.json();
+
+    if (!data.success || !data.csrfToken) {
+      throw new Error(
+        data.message || "Unable to initialize the security token.",
+      );
+    }
+
+    return data.csrfToken;
+  }, [router]);
+
+  const loadDocuments = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
@@ -291,11 +338,7 @@ export default function LawyerDocumentsPage() {
         },
       );
 
-      if (
-        response.status === 401 ||
-        response.status === 403 ||
-        response.redirected
-      ) {
+      if (response.status === 401) {
         router.push("/login");
         return;
       }
@@ -317,9 +360,9 @@ export default function LawyerDocumentsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [caseFilter, clientFilter, router, search, typeFilter]);
 
-  async function loadOptions() {
+  const loadOptions = useCallback(async () => {
     try {
       setLoadingOptions(true);
 
@@ -338,9 +381,7 @@ export default function LawyerDocumentsPage() {
 
       if (
         clientsResponse.status === 401 ||
-        clientsResponse.status === 403 ||
-        casesResponse.status === 401 ||
-        casesResponse.status === 403
+        casesResponse.status === 401
       ) {
         router.push("/login");
         return;
@@ -356,14 +397,25 @@ export default function LawyerDocumentsPage() {
       if (casesResponse.ok && casesData.success) {
         setCases(casesData.cases || []);
       }
-    } catch {
-      setError(
-        "Documents loaded, but clients or cases could not be loaded.",
-      );
+
+      if (!clientsResponse.ok || !casesResponse.ok) {
+        const failedResponse = !clientsResponse.ok
+          ? clientsResponse
+          : casesResponse;
+
+        throw new Error(await readApiError(failedResponse));
+      }
+    } catch (optionsError) {
+      const message =
+        optionsError instanceof Error
+          ? optionsError.message
+          : "Documents loaded, but clients or cases could not be loaded.";
+
+      setError(message);
     } finally {
       setLoadingOptions(false);
     }
-  }
+  }, [router]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -373,7 +425,7 @@ export default function LawyerDocumentsPage() {
     return () => {
       window.clearTimeout(timer);
     };
-  }, []);
+  }, [loadOptions]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -383,7 +435,7 @@ export default function LawyerDocumentsPage() {
     return () => {
       window.clearTimeout(timeout);
     };
-  }, [search, clientFilter, caseFilter, typeFilter]);
+  }, [loadDocuments]);
 
   const availableUploadCases = useMemo(() => {
     if (!uploadClientId) {
@@ -457,7 +509,6 @@ export default function LawyerDocumentsPage() {
 
   function openEditModal(documentItem: LegalDocument) {
     setEditingDocument(documentItem);
-
     setEditTitle(documentItem.title);
     setEditClientId(String(documentItem.client_id));
     setEditCaseId(
@@ -465,7 +516,6 @@ export default function LawyerDocumentsPage() {
     );
     setEditDocumentType(documentItem.document_type);
     setEditDescription(documentItem.description || "");
-
     setError("");
     setSuccessMessage("");
     setShowEditModal(true);
@@ -478,7 +528,6 @@ export default function LawyerDocumentsPage() {
 
     setShowEditModal(false);
     setEditingDocument(null);
-
     setEditTitle("");
     setEditClientId("");
     setEditCaseId("");
@@ -571,6 +620,8 @@ export default function LawyerDocumentsPage() {
       setSuccessMessage("");
       setUploadProgress(0);
 
+      const csrfToken = await initializeCsrf();
+
       const uploadUrlResponse = await fetch(
         "/api/auth/documents/upload-url/",
         {
@@ -578,6 +629,7 @@ export default function LawyerDocumentsPage() {
           credentials: "include",
           headers: {
             "Content-Type": "application/json",
+            "X-CSRFToken": csrfToken,
           },
           body: JSON.stringify({
             client_id: Number(uploadClientId),
@@ -593,10 +645,7 @@ export default function LawyerDocumentsPage() {
         },
       );
 
-      if (
-        uploadUrlResponse.status === 401 ||
-        uploadUrlResponse.status === 403
-      ) {
+      if (uploadUrlResponse.status === 401) {
         router.push("/login");
         return;
       }
@@ -607,7 +656,7 @@ export default function LawyerDocumentsPage() {
       if (!uploadUrlResponse.ok || !uploadUrlData.success) {
         throw new Error(
           uploadUrlData.message ||
-            "Unable to create the upload URL.",
+            (await readApiError(uploadUrlResponse)),
         );
       }
 
@@ -642,6 +691,7 @@ export default function LawyerDocumentsPage() {
           credentials: "include",
           headers: {
             "Content-Type": "application/json",
+            "X-CSRFToken": csrfToken,
           },
           body: JSON.stringify({
             client_id: Number(uploadClientId),
@@ -660,10 +710,7 @@ export default function LawyerDocumentsPage() {
         },
       );
 
-      if (
-        finalizeResponse.status === 401 ||
-        finalizeResponse.status === 403
-      ) {
+      if (finalizeResponse.status === 401) {
         router.push("/login");
         return;
       }
@@ -674,6 +721,7 @@ export default function LawyerDocumentsPage() {
       if (!finalizeResponse.ok || !finalizeData.success) {
         throw new Error(
           finalizeData.message ||
+            (await readApiError(finalizeResponse)) ||
             "The file uploaded, but the document could not be finalized.",
         );
       }
@@ -719,6 +767,8 @@ export default function LawyerDocumentsPage() {
       setError("");
       setSuccessMessage("");
 
+      const csrfToken = await initializeCsrf();
+
       const response = await fetch(
         `/api/auth/documents/${editingDocument.id}/`,
         {
@@ -726,6 +776,7 @@ export default function LawyerDocumentsPage() {
           credentials: "include",
           headers: {
             "Content-Type": "application/json",
+            "X-CSRFToken": csrfToken,
           },
           body: JSON.stringify({
             title: editTitle.trim(),
@@ -739,16 +790,12 @@ export default function LawyerDocumentsPage() {
         },
       );
 
-      if (
-        response.status === 401 ||
-        response.status === 403
-      ) {
+      if (response.status === 401) {
         router.push("/login");
         return;
       }
 
-      const data: UpdateDocumentResponse =
-        await response.json();
+      const data: UpdateDocumentResponse = await response.json();
 
       if (!response.ok || !data.success) {
         const validationMessage =
@@ -760,6 +807,7 @@ export default function LawyerDocumentsPage() {
         throw new Error(
           validationMessage ||
             data.message ||
+            (await readApiError(response)) ||
             "Unable to update the document.",
         );
       }
@@ -806,10 +854,7 @@ export default function LawyerDocumentsPage() {
         },
       );
 
-      if (
-        response.status === 401 ||
-        response.status === 403
-      ) {
+      if (response.status === 401) {
         router.push("/login");
         return;
       }
@@ -830,7 +875,6 @@ export default function LawyerDocumentsPage() {
       link.rel = "noopener noreferrer";
 
       globalThis.document.body.appendChild(link);
-
       link.click();
       link.remove();
     } catch (downloadError) {
@@ -859,18 +903,20 @@ export default function LawyerDocumentsPage() {
       setError("");
       setSuccessMessage("");
 
+      const csrfToken = await initializeCsrf();
+
       const response = await fetch(
         `/api/auth/documents/${documentItem.id}/`,
         {
           method: "DELETE",
           credentials: "include",
+          headers: {
+            "X-CSRFToken": csrfToken,
+          },
         },
       );
 
-      if (
-        response.status === 401 ||
-        response.status === 403
-      ) {
+      if (response.status === 401) {
         router.push("/login");
         return;
       }
@@ -879,7 +925,9 @@ export default function LawyerDocumentsPage() {
 
       if (!response.ok || !data.success) {
         throw new Error(
-          data.message || "Unable to delete the document.",
+          data.message ||
+            (await readApiError(response)) ||
+            "Unable to delete the document.",
         );
       }
 
@@ -921,7 +969,6 @@ export default function LawyerDocumentsPage() {
 
               <div className="min-w-0">
                 <p className="text-sm font-semibold">LawFirm</p>
-
                 <p className="truncate text-xs text-slate-500">
                   Management System
                 </p>
@@ -942,21 +989,21 @@ export default function LawyerDocumentsPage() {
                 </Link>
 
                 <Link
-                  href="/lawyer#clients"
+                  href="/lawyer/clients"
                   className="block rounded-lg px-3 py-2.5 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
                 >
                   Clients
                 </Link>
 
                 <Link
-                  href="/lawyer#cases"
+                  href="/lawyer/cases"
                   className="block rounded-lg px-3 py-2.5 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
                 >
                   Cases
                 </Link>
 
                 <Link
-                  href="/lawyer#hearings"
+                  href="/hearings"
                   className="block rounded-lg px-3 py-2.5 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
                 >
                   Hearings
@@ -970,7 +1017,7 @@ export default function LawyerDocumentsPage() {
                 </Link>
 
                 <Link
-                  href="/lawyer#tasks"
+                  href="/lawyer/tasks"
                   className="block rounded-lg px-3 py-2.5 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
                 >
                   Tasks
@@ -1224,16 +1271,12 @@ export default function LawyerDocumentsPage() {
                     >
                       <div className="flex items-start justify-between">
                         <div className="h-11 w-11 rounded-xl bg-slate-800" />
-
                         <div className="h-5 w-16 rounded-full bg-slate-800" />
                       </div>
 
                       <div className="mt-5 h-4 w-3/4 rounded bg-slate-800" />
-
                       <div className="mt-3 h-3 w-1/2 rounded bg-slate-800" />
-
                       <div className="mt-5 h-3 w-full rounded bg-slate-800" />
-
                       <div className="mt-2 h-3 w-4/5 rounded bg-slate-800" />
                     </div>
                   ))}
@@ -1265,9 +1308,11 @@ export default function LawyerDocumentsPage() {
                   ) && (
                     <button
                       type="button"
-                      onClick={() =>
-                        setShowUploadModal(true)
-                      }
+                      onClick={() => {
+                        setError("");
+                        setSuccessMessage("");
+                        setShowUploadModal(true);
+                      }}
                       className="mt-5 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-500"
                     >
                       Upload Document
@@ -1309,9 +1354,7 @@ export default function LawyerDocumentsPage() {
                         </h3>
 
                         <p
-                          title={
-                            documentItem.original_filename
-                          }
+                          title={documentItem.original_filename}
                           className="mt-1 truncate text-xs text-slate-600"
                         >
                           {documentItem.original_filename ||
@@ -1387,8 +1430,7 @@ export default function LawyerDocumentsPage() {
                           }
                           className="rounded-lg border border-slate-800 px-3 py-2.5 text-xs font-medium text-slate-300 transition hover:bg-slate-900 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          {downloadingId ===
-                          documentItem.id
+                          {downloadingId === documentItem.id
                             ? "Opening..."
                             : "Download"}
                         </button>
@@ -1941,4 +1983,3 @@ export default function LawyerDocumentsPage() {
     </main>
   );
 }
-

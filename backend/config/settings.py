@@ -16,30 +16,49 @@ import os
 from dotenv import load_dotenv
 
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+# ============================================================
+# BASE CONFIGURATION
+# ============================================================
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Load environment variables early, before anything reads them
+# Load environment variables
 load_dotenv(BASE_DIR / ".env")
 
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
+# ============================================================
+# SECURITY
+# ============================================================
+
+SECRET_KEY = os.getenv(
+    "DJANGO_SECRET_KEY",
+    "django-insecure-development-key-change-in-production",
+)
+
+# Development default is True.
+# Set DEBUG=False in the .env file for production.
+DEBUG = os.getenv("DEBUG", "True").strip().lower() == "true"
 
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
+# Allowed hosts
+_allowed_hosts = os.getenv(
+    "ALLOWED_HOSTS",
+    "127.0.0.1,localhost",
+)
+
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in _allowed_hosts.split(",")
+    if host.strip()
+]
 
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv("DEBUG", "False") == "True"
-
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",") if os.getenv("ALLOWED_HOSTS") else []
-
-
-# Application definition
+# ============================================================
+# APPLICATIONS
+# ============================================================
 
 INSTALLED_APPS = [
+    # Local applications
     "accounts",
     "clients",
     "cases",
@@ -52,6 +71,7 @@ INSTALLED_APPS = [
     "notifications",
     "lawyer",
 
+    # Django applications
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -60,11 +80,17 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django.contrib.sites",
 
+    # Django Allauth
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
     "allauth.socialaccount.providers.google",
 ]
+
+
+# ============================================================
+# MIDDLEWARE
+# ============================================================
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -78,8 +104,18 @@ MIDDLEWARE = [
 ]
 
 
+# ============================================================
+# URL / WSGI
+# ============================================================
+
 ROOT_URLCONF = "config.urls"
 
+WSGI_APPLICATION = "config.wsgi.application"
+
+
+# ============================================================
+# TEMPLATES
+# ============================================================
 
 TEMPLATES = [
     {
@@ -97,11 +133,9 @@ TEMPLATES = [
 ]
 
 
-WSGI_APPLICATION = "config.wsgi.application"
-
-
-# Database
-# https://docs.djangoproject.com/en/6.0/ref/settings/#databases
+# ============================================================
+# DATABASE
+# ============================================================
 
 DATABASES = {
     "default": {
@@ -115,8 +149,9 @@ DATABASES = {
 }
 
 
-# Password validation
-# https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
+# ============================================================
+# PASSWORD VALIDATION
+# ============================================================
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -146,43 +181,66 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
-# Internationalization
-# https://docs.djangoproject.com/en/6.0/topics/i18n/
+# ============================================================
+# INTERNATIONALIZATION
+# ============================================================
 
 LANGUAGE_CODE = "en-us"
 
 TIME_ZONE = "Asia/Amman"
+
 USE_I18N = True
 
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/6.0/howto/static-files/
+# ============================================================
+# STATIC FILES
+# ============================================================
 
 STATIC_URL = "static/"
 
 
-# Custom user model
+# ============================================================
+# CUSTOM USER MODEL
+# ============================================================
 
 AUTH_USER_MODEL = "accounts.User"
 
-# Google Authentication
+
+# ============================================================
+# DJANGO SITES
+# ============================================================
+
 SITE_ID = 1
+
+
+# ============================================================
+# AUTHENTICATION
+# ============================================================
 
 AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
     "allauth.account.auth_backends.AuthenticationBackend",
 ]
+
+
+# Django Allauth account adapter
 ACCOUNT_ADAPTER = "accounts.adapter.CustomAccountAdapter"
 
+
+# Django Allauth social account adapter
+SOCIALACCOUNT_ADAPTER = "accounts.adapter.CustomAccountAdapter"
+
+
+# Custom forms
 ACCOUNT_FORMS = {
     "login": "accounts.forms.CustomLoginForm",
     "signup": "accounts.forms.CustomSignupForm",
 }
 
-ACCOUNT_ADAPTER = "accounts.adapter.CustomAccountAdapter"
 
+# Google Authentication
 SOCIALACCOUNT_PROVIDERS = {
     "google": {
         "SCOPE": [
@@ -195,15 +253,46 @@ SOCIALACCOUNT_PROVIDERS = {
     },
 }
 
+
+# ============================================================
+# LOGIN / LOGOUT
+# ============================================================
+
 LOGIN_REDIRECT_URL = "/dashboard/"
+
 LOGOUT_REDIRECT_URL = "/accounts/login/"
 
 
+# ============================================================
+# EMAIL
+# ============================================================
+
+# Development email backend.
+# Emails appear in the Django terminal instead of being sent.
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
 DEFAULT_FROM_EMAIL = "noreply@lawfirm.local"
 
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-SUPABASE_STORAGE_BUCKET = os.getenv("SUPABASE_STORAGE_BUCKET", "legal-documents")
 
-SOCIALACCOUNT_ADAPTER = "accounts.adapters.LawFirmSocialAccountAdapter"
+# ============================================================
+# SUPABASE
+# ============================================================
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+
+SUPABASE_SERVICE_ROLE_KEY = os.getenv(
+    "SUPABASE_SERVICE_ROLE_KEY"
+)
+
+SUPABASE_STORAGE_BUCKET = os.getenv(
+    "SUPABASE_STORAGE_BUCKET",
+    "legal-documents",
+)
+
+
+# ============================================================
+# DEFAULT PRIMARY KEY
+# ============================================================
+
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+

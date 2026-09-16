@@ -1,31 +1,22 @@
-
 "use client";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  FormEvent,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 type Client = {
   id: number;
   full_name: string;
   national_id: string;
+  client_type: string;
   phone: string;
-  alternative_phone: string;
-  client_type: "individual" | "company";
-  email: string;
-  address: string;
-  date_of_birth: string | null;
-  notes: string;
-  created_by: string;
-  created_at: string;
-  updated_at: string;
-  cases_count: number;
+  alternative_phone?: string | null;
+  email?: string | null;
+  date_of_birth?: string | null;
+  address?: string | null;
+  notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
 };
 
 type RelatedCase = {
@@ -34,134 +25,195 @@ type RelatedCase = {
   title: string;
   status: string;
   priority: string;
-  opening_date: string;
 };
 
 type ClientDetails = Client & {
-  cases: RelatedCase[];
+  related_cases?: RelatedCase[];
 };
 
 type ClientsResponse = {
-  success: boolean;
-  clients: Client[];
-  count: number;
+  success?: boolean;
+  clients?: Client[];
+  count?: number;
+  message?: string;
+  error?: string;
 };
 
 type ClientDetailsResponse = {
-  success: boolean;
-  client: ClientDetails;
+  success?: boolean;
+  client?: ClientDetails;
+  message?: string;
+  error?: string;
+};
+
+type ApiErrorResponse = {
+  message?: string;
+  detail?: string;
+  error?: string;
+};
+
+type CsrfResponse = {
+  success?: boolean;
+  csrfToken?: string;
+  message?: string;
 };
 
 type ClientForm = {
   full_name: string;
   national_id: string;
+  client_type: string;
   phone: string;
   alternative_phone: string;
-  client_type: "individual" | "company";
   email: string;
-  address: string;
   date_of_birth: string;
+  address: string;
   notes: string;
 };
 
 const emptyForm: ClientForm = {
   full_name: "",
   national_id: "",
+  client_type: "individual",
   phone: "",
   alternative_phone: "",
-  client_type: "individual",
   email: "",
-  address: "",
   date_of_birth: "",
+  address: "",
   notes: "",
 };
 
-function formatDate(date: string | null) {
-  if (!date) {
+const clientTypes = [
+  {
+    value: "individual",
+    label: "Individual",
+  },
+  {
+    value: "company",
+    label: "Company",
+  },
+  {
+    value: "organization",
+    label: "Organization",
+  },
+];
+
+function formatDate(dateString?: string | null) {
+  if (!dateString) {
     return "—";
   }
 
-  const parsedDate = new Date(date);
+  const date = new Date(`${dateString}T00:00:00`);
 
-  if (Number.isNaN(parsedDate.getTime())) {
-    return date;
+  if (Number.isNaN(date.getTime())) {
+    return dateString;
   }
 
-  return parsedDate.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
+  return new Intl.DateTimeFormat("en-US", {
     year: "numeric",
-  });
+    month: "short",
+    day: "numeric",
+  }).format(date);
 }
 
-function formatDateTime(date: string) {
-  const parsedDate = new Date(date);
-
-  if (Number.isNaN(parsedDate.getTime())) {
-    return date;
+function formatDateTime(dateString?: string | null) {
+  if (!dateString) {
+    return "—";
   }
 
-  return parsedDate.toLocaleString("en-GB", {
-    day: "2-digit",
-    month: "short",
+  const date = new Date(dateString);
+
+  if (Number.isNaN(date.getTime())) {
+    return dateString;
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
     year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+    month: "short",
+    day: "numeric",
+  }).format(date);
 }
 
-function formatStatus(status: string) {
+function formatStatus(status?: string | null) {
+  if (!status) {
+    return "—";
+  }
+
   return status
-    .replaceAll("_", " ")
+    .replace(/\_/g, " ")
     .replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
-function getStatusClass(status: string) {
+function getStatusClass(status?: string | null) {
   switch (status) {
     case "active":
-      return "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200";
-
-    case "new":
-      return "bg-blue-50 text-blue-700 ring-1 ring-blue-200";
+      return "border-emerald-900/60 bg-emerald-950/30 text-emerald-300";
 
     case "pending":
-      return "bg-amber-50 text-amber-700 ring-1 ring-amber-200";
+      return "border-yellow-900/60 bg-yellow-950/30 text-yellow-300";
 
     case "closed":
-      return "bg-slate-100 text-slate-700 ring-1 ring-slate-200";
+      return "border-slate-700 bg-slate-900 text-slate-400";
 
     case "archived":
-      return "bg-slate-100 text-slate-500 ring-1 ring-slate-200";
-
-    case "high":
-      return "bg-orange-50 text-orange-700 ring-1 ring-orange-200";
-
-    case "urgent":
-      return "bg-red-50 text-red-700 ring-1 ring-red-200";
-
-    case "medium":
-      return "bg-yellow-50 text-yellow-700 ring-1 ring-yellow-200";
-
-    case "low":
-      return "bg-green-50 text-green-700 ring-1 ring-green-200";
+      return "border-slate-700 bg-slate-900 text-slate-500";
 
     default:
-      return "bg-slate-100 text-slate-600 ring-1 ring-slate-200";
+      return "border-blue-900/60 bg-blue-950/30 text-blue-300";
   }
 }
 
 function getInitials(name: string) {
-  const words = name.trim().split(/\s+/);
+  const parts = name.trim().split(/\s+/).filter(Boolean);
 
-  if (words.length === 0) {
+  if (!parts.length) {
     return "CL";
   }
 
-  if (words.length === 1) {
-    return words[0].slice(0, 2).toUpperCase();
+  if (parts.length === 1) {
+    return parts[0].slice(0, 2).toUpperCase();
   }
 
-  return `${words[0][0]}${words[words.length - 1][0]}`.toUpperCase();
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
+
+async function readApiError(response: Response) {
+  try {
+    const data: ApiErrorResponse = await response.json();
+
+    return (
+      data.message ||
+      data.detail ||
+      data.error ||
+      `Request failed with status ${response.status}.`
+    );
+  } catch {
+    return `Request failed with status ${response.status}.`;
+  }
+}
+
+function getCookieValue(name: string) {
+  if (typeof document === "undefined") {
+    return "";
+  }
+
+  const cookies = document.cookie.split("; ");
+
+  for (const cookie of cookies) {
+    const separatorIndex = cookie.indexOf("=");
+
+    if (separatorIndex === -1) {
+      continue;
+    }
+
+    const cookieName = cookie.slice(0, separatorIndex);
+    const cookieValue = cookie.slice(separatorIndex + 1);
+
+    if (cookieName === name) {
+      return decodeURIComponent(cookieValue);
+    }
+  }
+
+  return "";
 }
 
 export default function ClientsPage() {
@@ -172,90 +224,173 @@ export default function ClientsPage() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [deleteError, setDeleteError] = useState("");
+
   const [search, setSearch] = useState("");
-  const [clientType, setClientType] = useState<
-    "all" | "individual" | "company"
-  >("all");
+  const [clientTypeFilter, setClientTypeFilter] = useState("all");
 
   const [showFormModal, setShowFormModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const [editingClient, setEditingClient] = useState<Client | null>(null);
-  const [selectedClient, setSelectedClient] =
-    useState<ClientDetails | null>(null);
+  const [selectedClient, setSelectedClient] = useState<ClientDetails | null>(
+    null,
+  );
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
 
-  const [form, setForm] = useState<ClientForm>(emptyForm);
-  const [error, setError] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
+  const [detailsLoading, setDetailsLoading] = useState(false);
+
+  const [form, setForm] = useState(emptyForm);
+
+  const initializeCsrf = useCallback(async (): Promise<string> => {
+    const response = await fetch("/api/auth/csrf/", {
+      method: "GET",
+      credentials: "include",
+      cache: "no-store",
+    });
+
+    if (response.status === 401) {
+      router.push("/login");
+
+      throw new Error("Your session has expired. Please log in again.");
+    }
+
+    if (!response.ok) {
+      throw new Error(await readApiError(response));
+    }
+
+    const data: CsrfResponse = await response.json();
+
+    if (!data.success || !data.csrfToken) {
+      throw new Error(
+        data.message || "Unable to initialize the security token.",
+      );
+    }
+
+    const cookieToken = getCookieValue("csrftoken");
+
+    if (cookieToken) {
+      return cookieToken;
+    }
+
+    return data.csrfToken;
+  }, [router]);
 
   const loadClients = useCallback(async () => {
-    setLoading(true);
-    setError("");
+    const response = await fetch("/api/auth/clients/", {
+      method: "GET",
+      credentials: "include",
+      cache: "no-store",
+    });
 
-    try {
-      const params = new URLSearchParams();
+    if (response.status === 401) {
+      router.push("/login");
+      return;
+    }
 
-      if (search.trim()) {
-        params.set("search", search.trim());
-      }
+    if (!response.ok) {
+      throw new Error(await readApiError(response));
+    }
 
-      if (clientType !== "all") {
-        params.set("client_type", clientType);
-      }
+    const data: ClientsResponse = await response.json();
 
-      const queryString = params.toString();
+    if (data.success === false) {
+      throw new Error(data.message || data.error || "Unable to load clients.");
+    }
 
-      const response = await fetch(
-        `/api/auth/clients/${queryString ? `?${queryString}` : ""}`,
-        {
+    setClients(Array.isArray(data.clients) ? data.clients : []);
+  }, [router]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function initializePage() {
+      try {
+        const response = await fetch("/api/auth/clients/", {
           method: "GET",
           credentials: "include",
           cache: "no-store",
-        },
-      );
+        });
 
-      if (response.status === 401 || response.status === 403) {
-        router.push("/login");
-        return;
-      }
+        if (cancelled) {
+          return;
+        }
 
-      const data: ClientsResponse = await response.json();
+        if (response.status === 401) {
+          router.push("/login");
+          return;
+        }
 
-      if (!response.ok || !data.success) {
-        throw new Error(
-          "Unable to load clients. Please try again.",
+        if (!response.ok) {
+          throw new Error(await readApiError(response));
+        }
+
+        const data: ClientsResponse = await response.json();
+
+        if (data.success === false) {
+          throw new Error(
+            data.message || data.error || "Unable to load clients.",
+          );
+        }
+
+        if (!cancelled) {
+          setClients(Array.isArray(data.clients) ? data.clients : []);
+          setLoading(false);
+        }
+      } catch (loadError) {
+        if (cancelled) {
+          return;
+        }
+
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : "Unable to load clients.",
         );
+
+        setLoading(false);
       }
-
-      setClients(data.clients || []);
-    } catch (requestError) {
-      setError(
-        requestError instanceof Error
-          ? requestError.message
-          : "Unable to load clients.",
-      );
-    } finally {
-      setLoading(false);
     }
-  }, [clientType, router, search]);
 
-  useEffect(() => {
-    const timeout = window.setTimeout(() => {
-      loadClients();
-    }, 250);
+    void initializePage();
 
     return () => {
-      window.clearTimeout(timeout);
+      cancelled = true;
     };
-  }, [loadClients]);
+  }, [router]);
 
   const filteredClients = useMemo(() => {
-    return clients;
-  }, [clients]);
+    const normalizedSearch = search.trim().toLowerCase();
 
-  function openAddModal() {
+    return clients.filter((client) => {
+      const matchesType =
+        clientTypeFilter === "all" || client.client_type === clientTypeFilter;
+
+      if (!matchesType) {
+        return false;
+      }
+
+      if (!normalizedSearch) {
+        return true;
+      }
+
+      return [
+        client.full_name,
+        client.national_id,
+        client.phone,
+        client.alternative_phone || "",
+        client.email || "",
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalizedSearch);
+    });
+  }, [clients, clientTypeFilter, search]);
+
+  function openCreateModal() {
     setEditingClient(null);
     setForm(emptyForm);
     setError("");
@@ -267,66 +402,20 @@ export default function ClientsPage() {
     setEditingClient(client);
 
     setForm({
-      full_name: client.full_name,
-      national_id: client.national_id,
-      phone: client.phone,
+      full_name: client.full_name || "",
+      national_id: client.national_id || "",
+      client_type: client.client_type || "individual",
+      phone: client.phone || "",
       alternative_phone: client.alternative_phone || "",
-      client_type: client.client_type,
       email: client.email || "",
-      address: client.address || "",
       date_of_birth: client.date_of_birth || "",
+      address: client.address || "",
       notes: client.notes || "",
     });
 
     setError("");
     setSuccessMessage("");
     setShowFormModal(true);
-  }
-
-  async function openDetailsModal(client: Client) {
-    setError("");
-    setSuccessMessage("");
-    setSelectedClient(null);
-    setShowDetailsModal(true);
-
-    try {
-      const response = await fetch(
-        `/api/auth/clients/${client.id}/`,
-        {
-          method: "GET",
-          credentials: "include",
-          cache: "no-store",
-        },
-      );
-
-      if (response.status === 401 || response.status === 403) {
-        router.push("/login");
-        return;
-      }
-
-      const data: ClientDetailsResponse = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(
-          "Unable to load client details.",
-        );
-      }
-
-      setSelectedClient(data.client);
-    } catch (requestError) {
-      setError(
-        requestError instanceof Error
-          ? requestError.message
-          : "Unable to load client details.",
-      );
-    }
-  }
-
-  function openDeleteModal(client: Client) {
-    setClientToDelete(client);
-    setError("");
-    setSuccessMessage("");
-    setShowDeleteModal(true);
   }
 
   function closeFormModal() {
@@ -337,36 +426,9 @@ export default function ClientsPage() {
     setShowFormModal(false);
     setEditingClient(null);
     setForm(emptyForm);
-    setError("");
   }
 
-  function closeDetailsModal() {
-    setShowDetailsModal(false);
-    setSelectedClient(null);
-    setError("");
-  }
-
-  function closeDeleteModal() {
-    if (deleting) {
-      return;
-    }
-
-    setShowDeleteModal(false);
-    setClientToDelete(null);
-    setError("");
-  }
-
-  function handleFormChange(
-    field: keyof ClientForm,
-    value: string,
-  ) {
-    setForm((current) => ({
-      ...current,
-      [field]: value,
-    }));
-  }
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault();
 
     setSaving(true);
@@ -374,28 +436,18 @@ export default function ClientsPage() {
     setSuccessMessage("");
 
     try {
-      if (!form.full_name.trim()) {
-        throw new Error("Full name is required.");
-      }
-
-      if (!form.national_id.trim()) {
-        throw new Error("National ID is required.");
-      }
-
-      if (!form.phone.trim()) {
-        throw new Error("Phone number is required.");
-      }
+      const csrfToken = await initializeCsrf();
 
       const payload = {
         full_name: form.full_name.trim(),
         national_id: form.national_id.trim(),
-        phone: form.phone.trim(),
-        alternative_phone: form.alternative_phone.trim(),
         client_type: form.client_type,
-        email: form.email.trim(),
-        address: form.address.trim(),
+        phone: form.phone.trim(),
+        alternative_phone: form.alternative_phone.trim() || null,
+        email: form.email.trim() || null,
         date_of_birth: form.date_of_birth || null,
-        notes: form.notes.trim(),
+        address: form.address.trim() || null,
+        notes: form.notes.trim() || null,
       };
 
       const url = editingClient
@@ -406,22 +458,28 @@ export default function ClientsPage() {
         method: editingClient ? "PUT" : "POST",
         credentials: "include",
         headers: {
+          Accept: "application/json",
           "Content-Type": "application/json",
+          "X-CSRFToken": csrfToken,
+          "X-CSRF-Token": csrfToken,
         },
         body: JSON.stringify(payload),
       });
 
-      if (response.status === 401 || response.status === 403) {
+      if (response.status === 401) {
         router.push("/login");
         return;
       }
 
-      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(await readApiError(response));
+      }
 
-      if (!response.ok || !data.success) {
+      const data: ClientsResponse = await response.json();
+
+      if (data.success === false) {
         throw new Error(
-          data.message ||
-            "Unable to save the client. Please check the information and try again.",
+          data.message || data.error || "Unable to save the client.",
         );
       }
 
@@ -436,10 +494,10 @@ export default function ClientsPage() {
       );
 
       await loadClients();
-    } catch (requestError) {
+    } catch (submitError) {
       setError(
-        requestError instanceof Error
-          ? requestError.message
+        submitError instanceof Error
+          ? submitError.message
           : "Unable to save the client.",
       );
     } finally {
@@ -454,40 +512,56 @@ export default function ClientsPage() {
 
     setDeleting(true);
     setError("");
+    setDeleteError("");
     setSuccessMessage("");
 
     try {
-      const response = await fetch(
-        `/api/auth/clients/${clientToDelete.id}/`,
-        {
-          method: "DELETE",
-          credentials: "include",
-        },
-      );
+      const csrfToken = await initializeCsrf();
 
-      if (response.status === 401 || response.status === 403) {
+      const response = await fetch(`/api/auth/clients/${clientToDelete.id}/`, {
+        method: "DELETE",
+        credentials: "include",
+        headers: {
+          Accept: "application/json",
+          "X-CSRFToken": csrfToken,
+          "X-CSRF-Token": csrfToken,
+        },
+      });
+
+      if (response.status === 401) {
         router.push("/login");
         return;
       }
 
-      const data = await response.json();
+      if (response.status === 409) {
+        const message = await readApiError(response);
 
-      if (!response.ok || !data.success) {
+        setDeleteError(message);
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(await readApiError(response));
+      }
+
+      const data: ClientsResponse = await response.json();
+
+      if (data.success === false) {
         throw new Error(
-          data.message ||
-            "Unable to delete the client.",
+          data.message || data.error || "Unable to delete the client.",
         );
       }
 
       setShowDeleteModal(false);
       setClientToDelete(null);
+      setDeleteError("");
       setSuccessMessage("Client deleted successfully.");
 
       await loadClients();
-    } catch (requestError) {
-      setError(
-        requestError instanceof Error
-          ? requestError.message
+    } catch (deleteError) {
+      setDeleteError(
+        deleteError instanceof Error
+          ? deleteError.message
           : "Unable to delete the client.",
       );
     } finally {
@@ -495,611 +569,686 @@ export default function ClientsPage() {
     }
   }
 
+  async function openDetails(client: Client) {
+    setSelectedClient(null);
+    setShowDetailsModal(true);
+    setDetailsLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch(`/api/auth/clients/${client.id}/`, {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      if (response.status === 401) {
+        router.push("/login");
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(await readApiError(response));
+      }
+
+      const data: ClientDetailsResponse = await response.json();
+
+      if (data.success === false) {
+        throw new Error(
+          data.message || data.error || "Unable to load client details.",
+        );
+      }
+
+      if (!data.client) {
+        throw new Error("The server did not return client details.");
+      }
+
+      setSelectedClient(data.client);
+    } catch (detailsError) {
+      setError(
+        detailsError instanceof Error
+          ? detailsError.message
+          : "Unable to load client details.",
+      );
+      setShowDetailsModal(false);
+    } finally {
+      setDetailsLoading(false);
+    }
+  }
+
+  function closeDetailsModal() {
+    if (detailsLoading) {
+      return;
+    }
+
+    setShowDetailsModal(false);
+    setSelectedClient(null);
+  }
+
+  function openDeleteModal(client: Client) {
+    setClientToDelete(client);
+    setShowDeleteModal(true);
+    setError("");
+    setDeleteError("");
+    setSuccessMessage("");
+  }
+
+  function closeDeleteModal() {
+    if (deleting) {
+      return;
+    }
+
+    setShowDeleteModal(false);
+    setClientToDelete(null);
+    setDeleteError("");
+  }
+
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <main className="min-h-screen bg-slate-950 text-white">
       <div className="flex min-h-screen">
-        <aside className="hidden w-64 shrink-0 border-r border-slate-200 bg-slate-950 text-white lg:flex lg:flex-col">
-          <div className="border-b border-white/10 px-6 py-6">
-            <Link
-              href="/lawyer"
-              className="flex items-center gap-3"
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-sm font-bold text-slate-950">
+        <aside className="hidden w-64 shrink-0 border-r border-slate-800 bg-slate-950 lg:block">
+          <div className="flex h-full flex-col">
+            <div className="flex h-20 items-center border-b border-slate-800 px-6">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 font-bold">
                 LF
               </div>
 
-              <div>
-                <p className="text-sm font-semibold">
-                  LawFirm
-                </p>
-                <p className="text-xs text-slate-400">
+              <div className="ml-3 min-w-0">
+                <p className="text-sm font-semibold">LawFirm</p>
+                <p className="truncate text-xs text-slate-500">
                   Management System
                 </p>
               </div>
-            </Link>
-          </div>
+            </div>
 
-          <nav className="flex-1 space-y-1 px-3 py-5">
-            <Link
-              href="/lawyer"
-              className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-300 transition hover:bg-white/10 hover:text-white"
-            >
-              <span className="text-base">⌂</span>
-              Dashboard
-            </Link>
+            <nav className="flex-1 overflow-y-auto px-4 py-6">
+              <p className="mb-3 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-600">
+                Workspace
+              </p>
 
-            <Link
-              href="/lawyer/clients"
-              className="flex items-center gap-3 rounded-xl bg-white/10 px-3 py-2.5 text-sm font-medium text-white"
-            >
-              <span className="text-base">♙</span>
-              Clients
-            </Link>
+              <div className="space-y-1">
+                <Link
+                  href="/lawyer"
+                  className="block rounded-lg px-3 py-2.5 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
+                >
+                  Dashboard
+                </Link>
 
-            <Link
-              href="/lawyer#cases"
-              className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-300 transition hover:bg-white/10 hover:text-white"
-            >
-              <span className="text-base">▣</span>
-              Cases
-            </Link>
+                <Link
+                  href="/lawyer/clients"
+                  className="block rounded-lg bg-blue-600/10 px-3 py-2.5 text-sm font-medium text-blue-400"
+                >
+                  Clients
+                </Link>
 
-            <Link
-              href="/lawyer#hearings"
-              className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-300 transition hover:bg-white/10 hover:text-white"
-            >
-              <span className="text-base">◷</span>
-              Hearings
-            </Link>
+                <Link
+                  href="/lawyer/cases"
+                  className="block rounded-lg px-3 py-2.5 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
+                >
+                  Cases
+                </Link>
 
-            <Link
-              href="/lawyer#documents"
-              className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-300 transition hover:bg-white/10 hover:text-white"
-            >
-              <span className="text-base">▤</span>
-              Documents
-            </Link>
+                <Link
+                  href="/lawyer/hearings"
+                  className="block rounded-lg px-3 py-2.5 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
+                >
+                  Hearings
+                </Link>
 
-            <Link
-              href="/lawyer#tasks"
-              className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-300 transition hover:bg-white/10 hover:text-white"
-            >
-              <span className="text-base">✓</span>
-              Tasks
-            </Link>
+                <Link
+                  href="/lawyer/documents"
+                  className="block rounded-lg px-3 py-2.5 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
+                >
+                  Documents
+                </Link>
 
-            <Link
-              href="/lawyer#finance"
-              className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-300 transition hover:bg-white/10 hover:text-white"
-            >
-              <span className="text-base">₿</span>
-              Finance
-            </Link>
-          </nav>
+                <Link
+                  href="/lawyer/tasks"
+                  className="block rounded-lg px-3 py-2.5 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
+                >
+                  Tasks
+                </Link>
 
-          <div className="border-t border-white/10 p-4">
-            <Link
-              href="/lawyer"
-              className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-300 transition hover:bg-white/10 hover:text-white"
-            >
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-800 text-xs font-semibold">
-                LF
+                <Link
+                  href="/lawyer#finance"
+                  className="block rounded-lg px-3 py-2.5 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
+                >
+                  Finance
+                </Link>
               </div>
-
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-white">
-                  Lawyer Workspace
-                </p>
-                <p className="truncate text-xs text-slate-500">
-                  Return to dashboard
-                </p>
-              </div>
-            </Link>
+            </nav>
           </div>
         </aside>
 
-        <main className="min-w-0 flex-1">
-          <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
-            <div className="flex min-h-16 items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
-              <div className="min-w-0">
-                <div className="flex items-center gap-3">
-                  <Link
-                    href="/lawyer"
-                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50 lg:hidden"
-                    aria-label="Back to dashboard"
-                  >
-                    ←
-                  </Link>
+        <section className="flex min-w-0 flex-1 flex-col">
+          <header className="sticky top-0 z-20 flex min-h-20 items-center justify-between border-b border-slate-800 bg-slate-950/95 px-4 backdrop-blur sm:px-6 lg:px-8">
+            <div className="min-w-0">
+              <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500 sm:text-xs">
+                Lawyer Workspace
+              </p>
 
-                  <div className="min-w-0">
-                    <h1 className="truncate text-lg font-semibold text-slate-900 sm:text-xl">
-                      Clients
-                    </h1>
-
-                    <p className="hidden text-xs text-slate-500 sm:block">
-                      Manage your law firm&apos;s clients and their
-                      information.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={openAddModal}
-                className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-slate-900 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 sm:px-4"
-              >
-                <span className="text-base">+</span>
-                <span className="hidden sm:inline">
-                  Add Client
-                </span>
-                <span className="sm:hidden">Add</span>
-              </button>
+              <h1 className="mt-1 truncate text-lg font-semibold sm:text-xl">
+                Clients
+              </h1>
             </div>
+
+            <button
+              type="button"
+              onClick={openCreateModal}
+              className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-500"
+            >
+              + Add Client
+            </button>
           </header>
 
-          <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+          <div className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+            {error && (
+              <div
+                role="alert"
+                className="mb-6 rounded-2xl border border-red-900/60 bg-red-950/30 p-4"
+              >
+                <p className="text-sm font-medium text-red-300">
+                  Something went wrong
+                </p>
+
+                <p className="mt-1 text-sm text-red-400/80">{error}</p>
+              </div>
+            )}
+
             {successMessage && (
-              <div className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-                {successMessage}
+              <div
+                role="status"
+                className="mb-6 rounded-2xl border border-emerald-900/60 bg-emerald-950/30 p-4"
+              >
+                <p className="text-sm font-medium text-emerald-300">
+                  {successMessage}
+                </p>
               </div>
             )}
 
-            {error && !showFormModal && !showDetailsModal && (
-              <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {error}
+            <div className="mb-8">
+              <p className="mb-2 text-sm font-medium text-blue-400">
+                Client Management
+              </p>
+
+              <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+                Manage your clients
+              </h2>
+
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+                Create, review, update, and manage client information connected
+                to your legal cases.
+              </p>
+            </div>
+
+            <div className="mb-6 grid gap-4 sm:grid-cols-3">
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
+                <p className="text-sm text-slate-500">Total Clients</p>
+
+                <p className="mt-2 text-3xl font-semibold">
+                  {loading ? "—" : clients.length}
+                </p>
               </div>
-            )}
 
-            <section className="mb-6">
-              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div>
-                    <h2 className="text-sm font-semibold text-slate-900">
-                      Client Directory
-                    </h2>
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
+                <p className="text-sm text-slate-500">Individuals</p>
 
-                    <p className="mt-1 text-xs text-slate-500">
-                      Search and manage the clients available to your
-                      workspace.
-                    </p>
+                <p className="mt-2 text-3xl font-semibold">
+                  {loading
+                    ? "—"
+                    : clients.filter(
+                        (client) => client.client_type === "individual",
+                      ).length}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
+                <p className="text-sm text-slate-500">Organizations</p>
+
+                <p className="mt-2 text-3xl font-semibold">
+                  {loading
+                    ? "—"
+                    : clients.filter(
+                        (client) =>
+                          client.client_type === "company" ||
+                          client.client_type === "organization",
+                      ).length}
+                </p>
+              </div>
+            </div>
+
+            <section className="rounded-2xl border border-slate-800 bg-slate-900/40">
+              <div className="border-b border-slate-800 p-4 sm:p-5">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                  <div className="flex-1">
+                    <label htmlFor="client-search" className="sr-only">
+                      Search clients
+                    </label>
+
+                    <input
+                      id="client-search"
+                      name="search"
+                      type="search"
+                      autoComplete="off"
+                      value={search}
+                      onChange={(event) => setSearch(event.target.value)}
+                      placeholder="Search by name, national ID, phone, or email..."
+                      className="w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-blue-700"
+                    />
                   </div>
 
-                  <div className="flex flex-col gap-3 sm:flex-row">
-                    <div className="relative min-w-0 sm:w-72">
-                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">
-                        ⌕
-                      </span>
-
-                      <input
-                        type="search"
-                        value={search}
-                        onChange={(event) =>
-                          setSearch(event.target.value)
-                        }
-                        placeholder="Search clients..."
-                        className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
-                      />
-                    </div>
+                  <div className="w-full lg:w-56">
+                    <label htmlFor="client-type-filter" className="sr-only">
+                      Filter by client type
+                    </label>
 
                     <select
-                      value={clientType}
+                      id="client-type-filter"
+                      name="client_type_filter"
+                      value={clientTypeFilter}
                       onChange={(event) =>
-                        setClientType(
-                          event.target.value as
-                            | "all"
-                            | "individual"
-                            | "company",
-                        )
+                        setClientTypeFilter(event.target.value)
                       }
-                      className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                      className="w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-blue-700"
                     >
-                      <option value="all">
-                        All Clients
-                      </option>
-                      <option value="individual">
-                        Individuals
-                      </option>
-                      <option value="company">
-                        Companies
-                      </option>
+                      <option value="all">All client types</option>
+
+                      {clientTypes.map((type) => (
+                        <option key={type.value} value={type.value}>
+                          {type.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
               </div>
-            </section>
 
-            <section>
-              <div className="mb-4 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">
-                    {filteredClients.length}{" "}
-                    {filteredClients.length === 1
-                      ? "client"
-                      : "clients"}
-                  </p>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[900px]">
+                  <thead>
+                    <tr className="border-b border-slate-800 text-left">
+                      <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wider text-slate-600">
+                        Client
+                      </th>
 
-                  <p className="text-xs text-slate-500">
-                    Client records
-                  </p>
-                </div>
-              </div>
+                      <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wider text-slate-600">
+                        Contact
+                      </th>
 
-              {loading ? (
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  {[1, 2, 3, 4, 5, 6].map((item) => (
-                    <div
-                      key={item}
-                      className="h-56 animate-pulse rounded-2xl border border-slate-200 bg-white"
-                    />
-                  ))}
-                </div>
-              ) : filteredClients.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
-                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-lg text-slate-500">
-                    ♙
-                  </div>
+                      <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wider text-slate-600">
+                        Type
+                      </th>
 
-                  <h3 className="mt-4 text-sm font-semibold text-slate-900">
-                    No clients found
-                  </h3>
+                      <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wider text-slate-600">
+                        Added
+                      </th>
 
-                  <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">
-                    {search || clientType !== "all"
-                      ? "Try changing your search or filter."
-                      : "Start by adding your first client."}
-                  </p>
+                      <th className="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wider text-slate-600">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
 
-                  {!search && clientType === "all" && (
-                    <button
-                      type="button"
-                      onClick={openAddModal}
-                      className="mt-5 inline-flex items-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
-                    >
-                      Add Client
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  {filteredClients.map((client) => (
-                    <article
-                      key={client.id}
-                      className="flex min-h-56 flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:shadow-md"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex min-w-0 items-center gap-3">
-                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-sm font-bold text-slate-700">
-                            {getInitials(client.full_name)}
-                          </div>
+                  <tbody>
+                    {loading ? (
+                      <tr>
+                        <td
+                          colSpan={5}
+                          className="px-5 py-12 text-center text-sm text-slate-500"
+                        >
+                          Loading clients...
+                        </td>
+                      </tr>
+                    ) : filteredClients.length ? (
+                      filteredClients.map((client) => (
+                        <tr
+                          key={client.id}
+                          className="border-b border-slate-800/70 transition hover:bg-slate-900/60"
+                        >
+                          <td className="px-5 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-xs font-semibold text-blue-400">
+                                {getInitials(client.full_name)}
+                              </div>
 
-                          <div className="min-w-0">
-                            <h3 className="truncate text-sm font-semibold text-slate-900">
-                              {client.full_name}
-                            </h3>
+                              <div>
+                                <p className="text-sm font-semibold">
+                                  {client.full_name}
+                                </p>
 
-                            <p className="mt-0.5 truncate text-xs text-slate-500">
-                              {client.client_type === "company"
-                                ? "Company"
-                                : "Individual"}
+                                <p className="mt-1 text-xs text-slate-600">
+                                  ID: {client.national_id || "Not provided"}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td className="px-5 py-4">
+                            <p className="text-sm text-slate-300">
+                              {client.phone || "No phone"}
                             </p>
-                          </div>
-                        </div>
 
-                        <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">
-                          {client.cases_count}{" "}
-                          {client.cases_count === 1
-                            ? "case"
-                            : "cases"}
-                        </span>
-                      </div>
+                            <p className="mt-1 text-xs text-slate-600">
+                              {client.email || "No email"}
+                            </p>
+                          </td>
 
-                      <div className="mt-5 space-y-3 text-sm">
-                        <div className="flex items-start gap-3">
-                          <span className="w-16 shrink-0 text-xs font-medium text-slate-400">
-                            ID
-                          </span>
-
-                          <span className="break-all text-slate-700">
-                            {client.national_id}
-                          </span>
-                        </div>
-
-                        <div className="flex items-start gap-3">
-                          <span className="w-16 shrink-0 text-xs font-medium text-slate-400">
-                            Phone
-                          </span>
-
-                          <span className="break-all text-slate-700">
-                            {client.phone}
-                          </span>
-                        </div>
-
-                        {client.email && (
-                          <div className="flex items-start gap-3">
-                            <span className="w-16 shrink-0 text-xs font-medium text-slate-400">
-                              Email
+                          <td className="px-5 py-4">
+                            <span className="rounded-full border border-blue-900/60 bg-blue-950/30 px-2.5 py-1 text-[11px] font-medium text-blue-300">
+                              {formatStatus(client.client_type)}
                             </span>
+                          </td>
 
-                            <span className="break-all text-slate-700">
-                              {client.email}
-                            </span>
-                          </div>
-                        )}
+                          <td className="px-5 py-4 text-sm text-slate-500">
+                            {formatDateTime(client.created_at)}
+                          </td>
 
-                        <div className="flex items-start gap-3">
-                          <span className="w-16 shrink-0 text-xs font-medium text-slate-400">
-                            Added
-                          </span>
+                          <td className="px-5 py-4">
+                            <div className="flex justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => openDetails(client)}
+                                className="rounded-lg border border-slate-800 px-3 py-2 text-xs text-slate-400 hover:bg-slate-800 hover:text-white"
+                              >
+                                View
+                              </button>
 
-                          <span className="text-slate-700">
-                            {formatDate(client.created_at)}
-                          </span>
-                        </div>
-                      </div>
+                              <button
+                                type="button"
+                                onClick={() => openEditModal(client)}
+                                className="rounded-lg border border-blue-900/50 px-3 py-2 text-xs text-blue-400 hover:bg-blue-950/30"
+                              >
+                                Edit
+                              </button>
 
-                      <div className="mt-auto flex flex-wrap gap-2 border-t border-slate-100 pt-4">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            openDetailsModal(client)
-                          }
-                          className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
-                        >
-                          View
-                        </button>
+                              <button
+                                type="button"
+                                onClick={() => openDeleteModal(client)}
+                                className="rounded-lg border border-red-900/50 px-3 py-2 text-xs text-red-400 hover:bg-red-950/30"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={5} className="px-5 py-16 text-center">
+                          <p className="text-sm font-semibold text-slate-300">
+                            No clients found
+                          </p>
 
-                        <button
-                          type="button"
-                          onClick={() =>
-                            openEditModal(client)
-                          }
-                          className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
-                        >
-                          Edit
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            openDeleteModal(client)
-                          }
-                          className="rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              )}
+                          <p className="mt-2 text-sm text-slate-600">
+                            Add a client or change your search filters.
+                          </p>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </section>
           </div>
-        </main>
+        </section>
       </div>
 
       {showFormModal && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-0 sm:items-center sm:p-4">
-          <div className="flex max-h-[95vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:max-h-[90vh] sm:rounded-2xl">
-            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 sm:px-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-800 bg-slate-950">
+            <div className="flex items-center justify-between border-b border-slate-800 px-5 py-4">
               <div>
-                <h2 className="text-base font-semibold text-slate-900">
-                  {editingClient
-                    ? "Edit Client"
-                    : "Add Client"}
+                <h2 className="text-lg font-semibold">
+                  {editingClient ? "Edit Client" : "Add Client"}
                 </h2>
 
-                <p className="mt-1 text-xs text-slate-500">
-                  Enter the client&apos;s information below.
+                <p className="mt-1 text-xs text-slate-600">
+                  Enter the client information.
                 </p>
               </div>
 
               <button
                 type="button"
                 onClick={closeFormModal}
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
-                aria-label="Close"
+                disabled={saving}
+                className="rounded-lg px-3 py-2 text-slate-500 hover:bg-slate-900 hover:text-white"
               >
-                ×
+                ✕
               </button>
             </div>
 
-            <form
-              onSubmit={handleSubmit}
-              className="min-h-0 overflow-y-auto"
-            >
-              <div className="grid gap-5 px-5 py-5 sm:grid-cols-2 sm:px-6">
-                {error && (
-                  <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 sm:col-span-2">
-                    {error}
-                  </div>
-                )}
-
-                <div className="sm:col-span-2">
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                    Full Name *
+            <form onSubmit={handleSubmit} className="space-y-5 p-5">
+              <div className="grid gap-5 sm:grid-cols-2">
+                <div>
+                  <label
+                    htmlFor="client-full-name"
+                    className="mb-2 block text-sm font-medium text-slate-300"
+                  >
+                    Full Name
                   </label>
 
                   <input
+                    id="client-full-name"
+                    name="full_name"
                     type="text"
+                    autoComplete="name"
+                    required
                     value={form.full_name}
                     onChange={(event) =>
-                      handleFormChange(
-                        "full_name",
-                        event.target.value,
-                      )
+                      setForm({
+                        ...form,
+                        full_name: event.target.value,
+                      })
                     }
-                    placeholder="Enter full name"
-                    required
-                    className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                    className="w-full rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-blue-700"
                   />
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                    National ID *
+                  <label
+                    htmlFor="client-national-id"
+                    className="mb-2 block text-sm font-medium text-slate-300"
+                  >
+                    National ID
                   </label>
 
                   <input
+                    id="client-national-id"
+                    name="national_id"
                     type="text"
+                    autoComplete="off"
+                    required
                     value={form.national_id}
                     onChange={(event) =>
-                      handleFormChange(
-                        "national_id",
-                        event.target.value,
-                      )
+                      setForm({
+                        ...form,
+                        national_id: event.target.value,
+                      })
                     }
-                    placeholder="Enter national ID"
-                    required
-                    className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                    className="w-full rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-blue-700"
                   />
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                    Client Type *
+                  <label
+                    htmlFor="client-type"
+                    className="mb-2 block text-sm font-medium text-slate-300"
+                  >
+                    Client Type
                   </label>
 
                   <select
+                    id="client-type"
+                    name="client_type"
+                    required
                     value={form.client_type}
                     onChange={(event) =>
-                      handleFormChange(
-                        "client_type",
-                        event.target.value,
-                      )
+                      setForm({
+                        ...form,
+                        client_type: event.target.value,
+                      })
                     }
-                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                    className="w-full rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-blue-700"
                   >
-                    <option value="individual">
-                      Individual
-                    </option>
-                    <option value="company">
-                      Company
-                    </option>
+                    {clientTypes.map((type) => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                    Phone *
+                  <label
+                    htmlFor="client-phone"
+                    className="mb-2 block text-sm font-medium text-slate-300"
+                  >
+                    Phone
                   </label>
 
                   <input
+                    id="client-phone"
+                    name="phone"
                     type="tel"
+                    autoComplete="tel"
+                    required
                     value={form.phone}
                     onChange={(event) =>
-                      handleFormChange(
-                        "phone",
-                        event.target.value,
-                      )
+                      setForm({
+                        ...form,
+                        phone: event.target.value,
+                      })
                     }
-                    placeholder="Enter phone number"
-                    required
-                    className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                    className="w-full rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-blue-700"
                   />
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                  <label
+                    htmlFor="client-alternative-phone"
+                    className="mb-2 block text-sm font-medium text-slate-300"
+                  >
                     Alternative Phone
                   </label>
 
                   <input
+                    id="client-alternative-phone"
+                    name="alternative_phone"
                     type="tel"
+                    autoComplete="tel"
                     value={form.alternative_phone}
                     onChange={(event) =>
-                      handleFormChange(
-                        "alternative_phone",
-                        event.target.value,
-                      )
+                      setForm({
+                        ...form,
+                        alternative_phone: event.target.value,
+                      })
                     }
-                    placeholder="Optional"
-                    className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                    className="w-full rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-blue-700"
                   />
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                  <label
+                    htmlFor="client-email"
+                    className="mb-2 block text-sm font-medium text-slate-300"
+                  >
                     Email
                   </label>
 
                   <input
+                    id="client-email"
+                    name="email"
                     type="email"
+                    autoComplete="email"
                     value={form.email}
                     onChange={(event) =>
-                      handleFormChange(
-                        "email",
-                        event.target.value,
-                      )
+                      setForm({
+                        ...form,
+                        email: event.target.value,
+                      })
                     }
-                    placeholder="client@example.com"
-                    className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                    className="w-full rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-blue-700"
                   />
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                  <label
+                    htmlFor="client-date-of-birth"
+                    className="mb-2 block text-sm font-medium text-slate-300"
+                  >
                     Date of Birth
                   </label>
 
                   <input
+                    id="client-date-of-birth"
+                    name="date_of_birth"
                     type="date"
+                    autoComplete="bday"
                     value={form.date_of_birth}
                     onChange={(event) =>
-                      handleFormChange(
-                        "date_of_birth",
-                        event.target.value,
-                      )
+                      setForm({
+                        ...form,
+                        date_of_birth: event.target.value,
+                      })
                     }
-                    className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                    className="w-full rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-blue-700"
                   />
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                  <label
+                    htmlFor="client-address"
+                    className="mb-2 block text-sm font-medium text-slate-300"
+                  >
                     Address
                   </label>
 
                   <textarea
+                    id="client-address"
+                    name="address"
+                    autoComplete="street-address"
+                    rows={3}
                     value={form.address}
                     onChange={(event) =>
-                      handleFormChange(
-                        "address",
-                        event.target.value,
-                      )
+                      setForm({
+                        ...form,
+                        address: event.target.value,
+                      })
                     }
-                    placeholder="Enter client address"
-                    rows={3}
-                    className="w-full resize-none rounded-xl border border-slate-200 px-3 py-3 text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                    className="w-full resize-none rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-blue-700"
                   />
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                  <label
+                    htmlFor="client-notes"
+                    className="mb-2 block text-sm font-medium text-slate-300"
+                  >
                     Notes
                   </label>
 
                   <textarea
+                    id="client-notes"
+                    name="notes"
+                    rows={4}
                     value={form.notes}
                     onChange={(event) =>
-                      handleFormChange(
-                        "notes",
-                        event.target.value,
-                      )
+                      setForm({
+                        ...form,
+                        notes: event.target.value,
+                      })
                     }
-                    placeholder="Additional notes about the client"
-                    rows={4}
-                    className="w-full resize-none rounded-xl border border-slate-200 px-3 py-3 text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                    className="w-full resize-none rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-blue-700"
                   />
                 </div>
               </div>
 
-              <div className="flex flex-col-reverse gap-3 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
+              <div className="flex justify-end gap-3 border-t border-slate-800 pt-5">
                 <button
                   type="button"
                   onClick={closeFormModal}
                   disabled={saving}
-                  className="h-11 rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-lg border border-slate-800 px-4 py-2.5 text-sm text-slate-400 hover:bg-slate-900 hover:text-white"
                 >
                   Cancel
                 </button>
@@ -1107,7 +1256,7 @@ export default function ClientsPage() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="h-11 rounded-xl bg-slate-900 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold hover:bg-blue-500 disabled:opacity-50"
                 >
                   {saving
                     ? "Saving..."
@@ -1122,290 +1271,211 @@ export default function ClientsPage() {
       )}
 
       {showDetailsModal && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-0 sm:items-center sm:p-4">
-          <div className="flex max-h-[95vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:max-h-[90vh] sm:rounded-2xl">
-            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 sm:px-6">
-              <div>
-                <h2 className="text-base font-semibold text-slate-900">
-                  Client Details
-                </h2>
-
-                <p className="mt-1 text-xs text-slate-500">
-                  Client profile and related cases.
-                </p>
-              </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-800 bg-slate-950">
+            <div className="flex items-center justify-between border-b border-slate-800 px-5 py-4">
+              <h2 className="text-lg font-semibold">Client Details</h2>
 
               <button
                 type="button"
                 onClick={closeDetailsModal}
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
-                aria-label="Close"
+                className="rounded-lg px-3 py-2 text-slate-500 hover:bg-slate-900 hover:text-white"
               >
-                ×
+                ✕
               </button>
             </div>
 
-            <div className="min-h-0 overflow-y-auto px-5 py-5 sm:px-6">
-              {error && (
-                <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  {error}
-                </div>
-              )}
+            <div className="p-5">
+              {detailsLoading ? (
+                <p className="py-10 text-center text-sm text-slate-500">
+                  Loading client details...
+                </p>
+              ) : selectedClient ? (
+                <div className="space-y-5">
+                  <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-5">
+                    <h3 className="text-xl font-semibold">
+                      {selectedClient.full_name}
+                    </h3>
 
-              {!selectedClient ? (
-                <div className="flex items-center justify-center py-16">
-                  <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-slate-800" />
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 sm:flex-row sm:items-center">
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-base font-bold text-white">
-                      {getInitials(
-                        selectedClient.full_name,
-                      )}
+                    <p className="mt-1 text-sm text-blue-400">
+                      {formatStatus(selectedClient.client_type)}
+                    </p>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <p className="text-xs text-slate-600">National ID</p>
+
+                      <p className="mt-1 text-sm text-slate-300">
+                        {selectedClient.national_id || "Not provided"}
+                      </p>
                     </div>
 
-                    <div className="min-w-0">
-                      <h3 className="text-lg font-semibold text-slate-900">
-                        {selectedClient.full_name}
-                      </h3>
+                    <div>
+                      <p className="text-xs text-slate-600">Phone</p>
 
-                      <p className="mt-1 text-sm text-slate-500">
-                        {selectedClient.client_type ===
-                        "company"
-                          ? "Company"
-                          : "Individual"}
+                      <p className="mt-1 text-sm text-slate-300">
+                        {selectedClient.phone || "Not provided"}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-slate-600">Email</p>
+
+                      <p className="mt-1 break-all text-sm text-slate-300">
+                        {selectedClient.email || "Not provided"}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-slate-600">Date of Birth</p>
+
+                      <p className="mt-1 text-sm text-slate-300">
+                        {formatDate(selectedClient.date_of_birth)}
                       </p>
                     </div>
                   </div>
 
                   <div>
-                    <h3 className="mb-3 text-sm font-semibold text-slate-900">
-                      Contact Information
-                    </h3>
+                    <p className="text-xs text-slate-600">Address</p>
 
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div>
-                        <p className="text-xs font-medium text-slate-400">
-                          National ID
-                        </p>
-                        <p className="mt-1 break-all text-sm text-slate-800">
-                          {selectedClient.national_id}
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-xs font-medium text-slate-400">
-                          Phone
-                        </p>
-                        <p className="mt-1 break-all text-sm text-slate-800">
-                          {selectedClient.phone}
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-xs font-medium text-slate-400">
-                          Alternative Phone
-                        </p>
-                        <p className="mt-1 break-all text-sm text-slate-800">
-                          {selectedClient.alternative_phone ||
-                            "—"}
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-xs font-medium text-slate-400">
-                          Email
-                        </p>
-                        <p className="mt-1 break-all text-sm text-slate-800">
-                          {selectedClient.email || "—"}
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-xs font-medium text-slate-400">
-                          Date of Birth
-                        </p>
-                        <p className="mt-1 text-sm text-slate-800">
-                          {formatDate(
-                            selectedClient.date_of_birth,
-                          )}
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-xs font-medium text-slate-400">
-                          Added
-                        </p>
-                        <p className="mt-1 text-sm text-slate-800">
-                          {formatDateTime(
-                            selectedClient.created_at,
-                          )}
-                        </p>
-                      </div>
-
-                      <div className="sm:col-span-2">
-                        <p className="text-xs font-medium text-slate-400">
-                          Address
-                        </p>
-                        <p className="mt-1 whitespace-pre-wrap text-sm text-slate-800">
-                          {selectedClient.address || "—"}
-                        </p>
-                      </div>
-
-                      <div className="sm:col-span-2">
-                        <p className="text-xs font-medium text-slate-400">
-                          Notes
-                        </p>
-                        <p className="mt-1 whitespace-pre-wrap text-sm text-slate-800">
-                          {selectedClient.notes || "—"}
-                        </p>
-                      </div>
-                    </div>
+                    <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-300">
+                      {selectedClient.address || "No address provided."}
+                    </p>
                   </div>
 
                   <div>
-                    <div className="mb-3 flex items-center justify-between gap-3">
-                      <h3 className="text-sm font-semibold text-slate-900">
-                        Related Cases
-                      </h3>
+                    <p className="text-xs text-slate-600">Notes</p>
 
-                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-                        {selectedClient.cases.length}
-                      </span>
-                    </div>
+                    <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-300">
+                      {selectedClient.notes || "No notes available."}
+                    </p>
+                  </div>
 
-                    {selectedClient.cases.length === 0 ? (
-                      <div className="rounded-xl border border-dashed border-slate-300 px-4 py-8 text-center">
-                        <p className="text-sm font-medium text-slate-700">
-                          No cases found
-                        </p>
+                  <div>
+                    <p className="mb-3 text-sm font-semibold">Related Cases</p>
 
-                        <p className="mt-1 text-xs text-slate-500">
-                          This client does not have any related cases yet.
-                        </p>
+                    {selectedClient.related_cases?.length ? (
+                      <div className="space-y-2">
+                        {selectedClient.related_cases.map((caseItem) => (
+                          <div
+                            key={caseItem.id}
+                            className="rounded-xl border border-slate-800 bg-slate-900/40 p-4"
+                          >
+                            <p className="text-xs text-blue-400">
+                              {caseItem.case_number}
+                            </p>
+
+                            <p className="mt-1 text-sm font-medium">
+                              {caseItem.title}
+                            </p>
+
+                            <div className="mt-2 flex gap-2">
+                              <span
+                                className={`rounded-full border px-2 py-1 text-[10px] ${getStatusClass(
+                                  caseItem.status,
+                                )}`}
+                              >
+                                {formatStatus(caseItem.status)}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     ) : (
-                      <div className="space-y-3">
-                        {selectedClient.cases.map(
-                          (relatedCase) => (
-                            <div
-                              key={relatedCase.id}
-                              className="rounded-xl border border-slate-200 p-4"
-                            >
-                              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                <div className="min-w-0">
-                                  <p className="text-xs font-semibold text-slate-500">
-                                    {relatedCase.case_number}
-                                  </p>
-
-                                  <h4 className="mt-1 text-sm font-semibold text-slate-900">
-                                    {relatedCase.title}
-                                  </h4>
-                                </div>
-
-                                <div className="flex flex-wrap gap-2">
-                                  <span
-                                    className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${getStatusClass(
-                                      relatedCase.status,
-                                    )}`}
-                                  >
-                                    {formatStatus(
-                                      relatedCase.status,
-                                    )}
-                                  </span>
-
-                                  <span
-                                    className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${getStatusClass(
-                                      relatedCase.priority,
-                                    )}`}
-                                  >
-                                    {formatStatus(
-                                      relatedCase.priority,
-                                    )}
-                                  </span>
-                                </div>
-                              </div>
-
-                              <p className="mt-3 text-xs text-slate-500">
-                                Opened{" "}
-                                {formatDate(
-                                  relatedCase.opening_date,
-                                )}
-                              </p>
-                            </div>
-                          ),
-                        )}
-                      </div>
+                      <p className="text-sm text-slate-600">
+                        No related cases found.
+                      </p>
                     )}
                   </div>
                 </div>
+              ) : (
+                <p className="py-10 text-center text-sm text-slate-500">
+                  Unable to load client information.
+                </p>
               )}
-            </div>
-
-            <div className="flex justify-end border-t border-slate-200 bg-slate-50 px-5 py-4 sm:px-6">
-              <button
-                type="button"
-                onClick={closeDetailsModal}
-                className="h-11 rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-              >
-                Close
-              </button>
             </div>
           </div>
         </div>
       )}
 
       {showDeleteModal && clientToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl sm:p-6">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-50 text-lg text-red-600">
-              !
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-950 p-6">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full border border-red-900/60 bg-red-950/30">
+              <span className="text-xl text-red-400">!</span>
             </div>
 
-            <h2 className="mt-4 text-base font-semibold text-slate-900">
-              Delete Client
+            <h2 className="mt-4 text-lg font-semibold">
+              {deleteError ? "Client cannot be deleted" : "Delete client?"}
             </h2>
 
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              Are you sure you want to delete{" "}
-              <span className="font-semibold text-slate-900">
-                {clientToDelete.full_name}
-              </span>
-              ? This action cannot be undone.
-            </p>
+            {deleteError ? (
+              <>
+                <div className="mt-4 rounded-xl border border-amber-900/60 bg-amber-950/20 p-4">
+                  <p className="text-sm leading-6 text-amber-300">
+                    {deleteError}
+                  </p>
+                </div>
 
-            {error && (
-              <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {error}
-              </div>
+                <p className="mt-4 text-sm leading-6 text-slate-500">
+                  The client has been kept safely in the system. This protects
+                  documents and other legal records associated with the client.
+                </p>
+
+                <div className="mt-6 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={closeDeleteModal}
+                    disabled={deleting}
+                    className="rounded-lg border border-slate-800 px-5 py-2.5 text-sm font-medium text-slate-300 hover:bg-slate-900 hover:text-white"
+                  >
+                    Close
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  You are about to delete{" "}
+                  <span className="font-medium text-slate-300">
+                    {clientToDelete.full_name}
+                  </span>
+                  . This action cannot be undone.
+                </p>
+
+                <div className="mt-4 rounded-xl border border-red-900/50 bg-red-950/20 p-4">
+                  <p className="text-xs leading-5 text-red-300/80">
+                    Clients with protected legal records cannot be deleted.
+                    Documents, cases, and other related records may depend on
+                    this client.
+                  </p>
+                </div>
+
+                <div className="mt-6 flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={closeDeleteModal}
+                    disabled={deleting}
+                    className="rounded-lg border border-slate-800 px-4 py-2.5 text-sm text-slate-400 hover:bg-slate-900 hover:text-white"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    className="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold hover:bg-red-500 disabled:opacity-50"
+                  >
+                    {deleting ? "Deleting..." : "Delete Client"}
+                  </button>
+                </div>
+              </>
             )}
-
-            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                onClick={closeDeleteModal}
-                disabled={deleting}
-                className="h-11 rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Cancel
-              </button>
-
-              <button
-                type="button"
-                onClick={handleDelete}
-                disabled={deleting}
-                className="h-11 rounded-xl bg-red-600 px-5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {deleting
-                  ? "Deleting..."
-                  : "Delete Client"}
-              </button>
-            </div>
           </div>
         </div>
       )}
-    </div>
+    </main>
   );
 }
-

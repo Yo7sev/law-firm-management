@@ -4,15 +4,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   FormEvent,
+  useCallback,
   useEffect,
   useMemo,
   useState,
 } from "react";
 
-type Client = {
-  id: number;
-  full_name: string;
-};
+
 
 type Case = {
   id: number;
@@ -273,7 +271,7 @@ export default function LawyerTasksPage() {
   const [updatingStatusId, setUpdatingStatusId] =
     useState<number | null>(null);
 
-  async function loadCurrentUser() {
+  const loadCurrentUser = useCallback(async () => {
     try {
       const response = await fetch(
         "/api/auth/me/",
@@ -312,9 +310,9 @@ export default function LawyerTasksPage() {
 
       setError(message);
     }
-  }
+  }, [router]);
 
-  async function loadCases() {
+  const loadCases = useCallback(async () => {
     try {
       setLoadingCases(true);
 
@@ -357,9 +355,9 @@ export default function LawyerTasksPage() {
     } finally {
       setLoadingCases(false);
     }
-  }
+  }, [router]);
 
-  async function loadTasks() {
+  const loadTasks = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
@@ -432,7 +430,12 @@ export default function LawyerTasksPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [
+    caseFilter,
+    router,
+    search,
+    statusFilter,
+  ]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -443,7 +446,7 @@ export default function LawyerTasksPage() {
     return () => {
       window.clearTimeout(timer);
     };
-  }, []);
+  }, [loadCases, loadCurrentUser]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -453,11 +456,7 @@ export default function LawyerTasksPage() {
     return () => {
       window.clearTimeout(timer);
     };
-  }, [
-    search,
-    caseFilter,
-    statusFilter,
-  ]);
+  }, [loadTasks]);
 
   const filteredCases = useMemo(() => {
     return cases;
