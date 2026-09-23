@@ -466,9 +466,7 @@ export default function CasesPage() {
       case_number: form.case_number.trim(),
       title: form.title.trim(),
       client_id: Number(form.client_id),
-      case_type_id: form.case_type_id
-        ? Number(form.case_type_id)
-        : null,
+      case_type_id: form.case_type_id ? Number(form.case_type_id) : null,
       status: form.status,
       priority: form.priority,
       court: form.court.trim(),
@@ -540,20 +538,15 @@ export default function CasesPage() {
     setSuccess("");
 
     try {
-      const response = await fetch(
-        `/api/auth/cases/${selectedCase.id}/`,
-        {
-          method: "DELETE",
-          credentials: "include",
-        },
-      );
+      const response = await fetch(`/api/auth/cases/${selectedCase.id}/`, {
+        method: "DELETE",
+        credentials: "include",
+      });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(
-          data.message || "Unable to delete the case.",
-        );
+        throw new Error(data.message || "Unable to delete the case.");
       }
 
       setShowDeleteModal(false);
@@ -594,13 +587,9 @@ export default function CasesPage() {
               </div>
 
               <div>
-                <p className="text-sm font-semibold text-white">
-                  LawFirm
-                </p>
+                <p className="text-sm font-semibold text-white">LawFirm</p>
 
-                <p className="text-xs text-slate-500">
-                  Management System
-                </p>
+                <p className="text-xs text-slate-500">Management System</p>
               </div>
             </Link>
           </div>
@@ -667,11 +656,7 @@ export default function CasesPage() {
             <div className="mb-3 flex items-center gap-3 rounded-xl bg-slate-900 p-3">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-700 text-xs font-semibold text-white">
                 {user
-                  ? getInitials(
-                      user.first_name,
-                      user.last_name,
-                      user.email,
-                    )
+                  ? getInitials(user.first_name, user.last_name, user.email)
                   : "U"}
               </div>
 
@@ -723,13 +708,9 @@ export default function CasesPage() {
               >
                 <span className="text-lg leading-none">+</span>
 
-                <span className="hidden sm:inline">
-                  New Case
-                </span>
+                <span className="hidden sm:inline">New Case</span>
 
-                <span className="sm:hidden">
-                  New
-                </span>
+                <span className="sm:hidden">New</span>
               </button>
             </div>
           </header>
@@ -810,10 +791,7 @@ export default function CasesPage() {
             <section className="mb-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 sm:p-5">
               <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_180px_180px_200px]">
                 <div className="relative">
-                  <label
-                    htmlFor="case-search"
-                    className="sr-only"
-                  >
+                  <label htmlFor="case-search" className="sr-only">
                     Search cases
                   </label>
 
@@ -825,9 +803,7 @@ export default function CasesPage() {
                     id="case-search"
                     type="search"
                     value={search}
-                    onChange={(event) =>
-                      setSearch(event.target.value)
-                    }
+                    onChange={(event) => setSearch(event.target.value)}
                     placeholder="Search case number, title, client, court..."
                     className="w-full rounded-xl border border-slate-700 bg-slate-950 px-10 py-2.5 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-slate-500"
                   />
@@ -835,19 +811,14 @@ export default function CasesPage() {
 
                 <select
                   value={statusFilter}
-                  onChange={(event) =>
-                    setStatusFilter(event.target.value)
-                  }
+                  onChange={(event) => setStatusFilter(event.target.value)}
                   className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-300 outline-none focus:border-slate-500"
                   aria-label="Filter by status"
                 >
                   <option value="">All statuses</option>
 
                   {statusOptions.map((option) => (
-                    <option
-                      key={option.value}
-                      value={option.value}
-                    >
+                    <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
                   ))}
@@ -855,19 +826,14 @@ export default function CasesPage() {
 
                 <select
                   value={priorityFilter}
-                  onChange={(event) =>
-                    setPriorityFilter(event.target.value)
-                  }
+                  onChange={(event) => setPriorityFilter(event.target.value)}
                   className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-300 outline-none focus:border-slate-500"
                   aria-label="Filter by priority"
                 >
                   <option value="">All priorities</option>
 
                   {priorityOptions.map((option) => (
-                    <option
-                      key={option.value}
-                      value={option.value}
-                    >
+                    <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
                   ))}
@@ -875,19 +841,14 @@ export default function CasesPage() {
 
                 <select
                   value={caseTypeFilter}
-                  onChange={(event) =>
-                    setCaseTypeFilter(event.target.value)
-                  }
+                  onChange={(event) => setCaseTypeFilter(event.target.value)}
                   className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-300 outline-none focus:border-slate-500"
                   aria-label="Filter by case type"
                 >
                   <option value="">All case types</option>
 
                   {caseTypes.map((caseType) => (
-                    <option
-                      key={caseType.id}
-                      value={caseType.id}
-                    >
+                    <option key={caseType.id} value={caseType.id}>
                       {caseType.name}
                     </option>
                   ))}
@@ -915,10 +876,7 @@ export default function CasesPage() {
                   </h2>
 
                   <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
-                    {search ||
-                    statusFilter ||
-                    priorityFilter ||
-                    caseTypeFilter
+                    {search || statusFilter || priorityFilter || caseTypeFilter
                       ? "Try changing your search or filters."
                       : "Create your first legal case to start managing your case records."}
                   </p>
@@ -984,9 +942,7 @@ export default function CasesPage() {
                               <td className="px-5 py-4">
                                 <button
                                   type="button"
-                                  onClick={() =>
-                                    openViewModal(legalCase)
-                                  }
+                                  onClick={() => openViewModal(legalCase)}
                                   className="text-left"
                                 >
                                   <p className="text-sm font-semibold text-white hover:text-slate-300">
@@ -1000,13 +956,15 @@ export default function CasesPage() {
                               </td>
 
                               <td className="px-5 py-4">
-                                <p className="text-sm text-slate-300">
+                                <Link
+                                  href={`/lawyer/clients/${legalCase.client_id}`}
+                                  className="text-sm text-slate-300 transition hover:text-white hover:underline"
+                                >
                                   {legalCase.client.full_name}
-                                </p>
+                                </Link>
 
                                 <p className="mt-1 text-xs text-slate-600">
-                                  {legalCase.case_type?.name ||
-                                    "No case type"}
+                                  {legalCase.case_type?.name || "No case type"}
                                 </p>
                               </td>
 
@@ -1043,18 +1001,14 @@ export default function CasesPage() {
                               </td>
 
                               <td className="px-5 py-4 text-sm text-slate-400">
-                                {formatDate(
-                                  legalCase.opening_date,
-                                )}
+                                {formatDate(legalCase.opening_date)}
                               </td>
 
                               <td className="px-5 py-4">
                                 <div className="flex justify-end gap-2">
                                   <button
                                     type="button"
-                                    onClick={() =>
-                                      openViewModal(legalCase)
-                                    }
+                                    onClick={() => openViewModal(legalCase)}
                                     className="rounded-lg px-3 py-2 text-xs font-medium text-slate-400 transition hover:bg-slate-800 hover:text-white"
                                   >
                                     View
@@ -1062,9 +1016,7 @@ export default function CasesPage() {
 
                                   <button
                                     type="button"
-                                    onClick={() =>
-                                      openEditModal(legalCase)
-                                    }
+                                    onClick={() => openEditModal(legalCase)}
                                     className="rounded-lg px-3 py-2 text-xs font-medium text-slate-400 transition hover:bg-slate-800 hover:text-white"
                                   >
                                     Edit
@@ -1072,9 +1024,7 @@ export default function CasesPage() {
 
                                   <button
                                     type="button"
-                                    onClick={() =>
-                                      openDeleteModal(legalCase)
-                                    }
+                                    onClick={() => openDeleteModal(legalCase)}
                                     className="rounded-lg px-3 py-2 text-xs font-medium text-red-400 transition hover:bg-red-500/10"
                                   >
                                     Delete
@@ -1097,9 +1047,7 @@ export default function CasesPage() {
                         <div className="flex items-start justify-between gap-3">
                           <button
                             type="button"
-                            onClick={() =>
-                              openViewModal(legalCase)
-                            }
+                            onClick={() => openViewModal(legalCase)}
                             className="min-w-0 text-left"
                           >
                             <p className="text-sm font-semibold text-white">
@@ -1126,9 +1074,12 @@ export default function CasesPage() {
                               Client
                             </p>
 
-                            <p className="mt-1 truncate text-sm text-slate-300">
+                            <Link
+                              href={`/lawyer/clients/${legalCase.client_id}`}
+                              className="mt-1 block truncate text-sm text-slate-300 transition hover:text-white hover:underline"
+                            >
                               {legalCase.client.full_name}
-                            </p>
+                            </Link>
                           </div>
 
                           <div>
@@ -1161,9 +1112,7 @@ export default function CasesPage() {
                             </p>
 
                             <p className="mt-1 text-sm text-slate-300">
-                              {formatDate(
-                                legalCase.opening_date,
-                              )}
+                              {formatDate(legalCase.opening_date)}
                             </p>
                           </div>
                         </div>
@@ -1171,9 +1120,7 @@ export default function CasesPage() {
                         <div className="mt-4 flex gap-2 border-t border-slate-800 pt-4">
                           <button
                             type="button"
-                            onClick={() =>
-                              openViewModal(legalCase)
-                            }
+                            onClick={() => openViewModal(legalCase)}
                             className="flex-1 rounded-lg bg-slate-800 px-3 py-2.5 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white"
                           >
                             View
@@ -1181,9 +1128,7 @@ export default function CasesPage() {
 
                           <button
                             type="button"
-                            onClick={() =>
-                              openEditModal(legalCase)
-                            }
+                            onClick={() => openEditModal(legalCase)}
                             className="flex-1 rounded-lg bg-slate-800 px-3 py-2.5 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white"
                           >
                             Edit
@@ -1191,9 +1136,7 @@ export default function CasesPage() {
 
                           <button
                             type="button"
-                            onClick={() =>
-                              openDeleteModal(legalCase)
-                            }
+                            onClick={() => openDeleteModal(legalCase)}
                             className="flex-1 rounded-lg bg-red-500/10 px-3 py-2.5 text-xs font-medium text-red-400 hover:bg-red-500/20"
                           >
                             Delete
@@ -1265,10 +1208,7 @@ export default function CasesPage() {
                         type="text"
                         value={form.case_number}
                         onChange={(event) =>
-                          updateForm(
-                            "case_number",
-                            event.target.value,
-                          )
+                          updateForm("case_number", event.target.value)
                         }
                         placeholder="e.g. 2026/001"
                         className={`w-full rounded-xl border bg-slate-900 px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-slate-500 ${
@@ -1298,10 +1238,7 @@ export default function CasesPage() {
                         type="text"
                         value={form.title}
                         onChange={(event) =>
-                          updateForm(
-                            "title",
-                            event.target.value,
-                          )
+                          updateForm("title", event.target.value)
                         }
                         placeholder="Enter case title"
                         className={`w-full rounded-xl border bg-slate-900 px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-slate-500 ${
@@ -1330,10 +1267,7 @@ export default function CasesPage() {
                         id="client_id"
                         value={form.client_id}
                         onChange={(event) =>
-                          updateForm(
-                            "client_id",
-                            event.target.value,
-                          )
+                          updateForm("client_id", event.target.value)
                         }
                         className={`w-full rounded-xl border bg-slate-900 px-3 py-2.5 text-sm text-slate-200 outline-none focus:border-slate-500 ${
                           formErrors.client_id
@@ -1341,17 +1275,11 @@ export default function CasesPage() {
                             : "border-slate-700"
                         }`}
                       >
-                        <option value="">
-                          Select a client
-                        </option>
+                        <option value="">Select a client</option>
 
                         {clients.map((client) => (
-                          <option
-                            key={client.id}
-                            value={client.id}
-                          >
-                            {client.full_name} —{" "}
-                            {client.national_id}
+                          <option key={client.id} value={client.id}>
+                            {client.full_name} — {client.national_id}
                           </option>
                         ))}
                       </select>
@@ -1381,10 +1309,7 @@ export default function CasesPage() {
                         id="case_type_id"
                         value={form.case_type_id}
                         onChange={(event) =>
-                          updateForm(
-                            "case_type_id",
-                            event.target.value,
-                          )
+                          updateForm("case_type_id", event.target.value)
                         }
                         className={`w-full rounded-xl border bg-slate-900 px-3 py-2.5 text-sm text-slate-200 outline-none focus:border-slate-500 ${
                           formErrors.case_type_id
@@ -1392,15 +1317,10 @@ export default function CasesPage() {
                             : "border-slate-700"
                         }`}
                       >
-                        <option value="">
-                          Select case type
-                        </option>
+                        <option value="">Select case type</option>
 
                         {caseTypes.map((caseType) => (
-                          <option
-                            key={caseType.id}
-                            value={caseType.id}
-                          >
+                          <option key={caseType.id} value={caseType.id}>
                             {caseType.name}
                           </option>
                         ))}
@@ -1425,18 +1345,12 @@ export default function CasesPage() {
                         id="status"
                         value={form.status}
                         onChange={(event) =>
-                          updateForm(
-                            "status",
-                            event.target.value,
-                          )
+                          updateForm("status", event.target.value)
                         }
                         className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-slate-200 outline-none focus:border-slate-500"
                       >
                         {statusOptions.map((option) => (
-                          <option
-                            key={option.value}
-                            value={option.value}
-                          >
+                          <option key={option.value} value={option.value}>
                             {option.label}
                           </option>
                         ))}
@@ -1455,18 +1369,12 @@ export default function CasesPage() {
                         id="priority"
                         value={form.priority}
                         onChange={(event) =>
-                          updateForm(
-                            "priority",
-                            event.target.value,
-                          )
+                          updateForm("priority", event.target.value)
                         }
                         className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-slate-200 outline-none focus:border-slate-500"
                       >
                         {priorityOptions.map((option) => (
-                          <option
-                            key={option.value}
-                            value={option.value}
-                          >
+                          <option key={option.value} value={option.value}>
                             {option.label}
                           </option>
                         ))}
@@ -1498,10 +1406,7 @@ export default function CasesPage() {
                         type="text"
                         value={form.court}
                         onChange={(event) =>
-                          updateForm(
-                            "court",
-                            event.target.value,
-                          )
+                          updateForm("court", event.target.value)
                         }
                         placeholder="e.g. Amman Court of First Instance"
                         className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-slate-500"
@@ -1521,10 +1426,7 @@ export default function CasesPage() {
                         type="text"
                         value={form.court_number}
                         onChange={(event) =>
-                          updateForm(
-                            "court_number",
-                            event.target.value,
-                          )
+                          updateForm("court_number", event.target.value)
                         }
                         placeholder="Enter court number"
                         className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-slate-500"
@@ -1544,10 +1446,7 @@ export default function CasesPage() {
                         type="text"
                         value={form.judge}
                         onChange={(event) =>
-                          updateForm(
-                            "judge",
-                            event.target.value,
-                          )
+                          updateForm("judge", event.target.value)
                         }
                         placeholder="Judge name"
                         className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-slate-500"
@@ -1567,10 +1466,7 @@ export default function CasesPage() {
                         type="text"
                         value={form.opposing_party}
                         onChange={(event) =>
-                          updateForm(
-                            "opposing_party",
-                            event.target.value,
-                          )
+                          updateForm("opposing_party", event.target.value)
                         }
                         placeholder="Opposing party name"
                         className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-slate-500"
@@ -1590,10 +1486,7 @@ export default function CasesPage() {
                         type="text"
                         value={form.opposing_lawyer}
                         onChange={(event) =>
-                          updateForm(
-                            "opposing_lawyer",
-                            event.target.value,
-                          )
+                          updateForm("opposing_lawyer", event.target.value)
                         }
                         placeholder="Opposing lawyer name"
                         className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-slate-500"
@@ -1607,7 +1500,8 @@ export default function CasesPage() {
                     </h3>
 
                     <p className="mt-1 text-xs text-slate-500">
-                      Record when the case was opened and, if applicable, closed.
+                      Record when the case was opened and, if applicable,
+                      closed.
                     </p>
                   </div>
 
@@ -1625,10 +1519,7 @@ export default function CasesPage() {
                         type="date"
                         value={form.opening_date}
                         onChange={(event) =>
-                          updateForm(
-                            "opening_date",
-                            event.target.value,
-                          )
+                          updateForm("opening_date", event.target.value)
                         }
                         className={`w-full rounded-xl border bg-slate-900 px-3 py-2.5 text-sm text-white outline-none focus:border-slate-500 ${
                           formErrors.opening_date
@@ -1657,10 +1548,7 @@ export default function CasesPage() {
                         type="date"
                         value={form.closing_date}
                         onChange={(event) =>
-                          updateForm(
-                            "closing_date",
-                            event.target.value,
-                          )
+                          updateForm("closing_date", event.target.value)
                         }
                         className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none focus:border-slate-500"
                       />
@@ -1676,9 +1564,7 @@ export default function CasesPage() {
                       {editingCase?.assigned_lawyer
                         ? `${editingCase.assigned_lawyer.first_name} ${editingCase.assigned_lawyer.last_name}`.trim() ||
                           editingCase.assigned_lawyer.email
-                        : user?.first_name ||
-                          user?.email ||
-                          "Current user"}
+                        : user?.first_name || user?.email || "Current user"}
                     </p>
 
                     <p className="mt-1 text-xs text-slate-600">
@@ -1696,10 +1582,7 @@ export default function CasesPage() {
                       id="description"
                       value={form.description}
                       onChange={(event) =>
-                        updateForm(
-                          "description",
-                          event.target.value,
-                        )
+                        updateForm("description", event.target.value)
                       }
                       rows={5}
                       placeholder="Enter a description or summary of the case..."
@@ -1896,8 +1779,7 @@ export default function CasesPage() {
                 </p>
 
                 <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-300">
-                  {selectedCase.description ||
-                    "No description provided."}
+                  {selectedCase.description || "No description provided."}
                 </p>
               </div>
             </div>

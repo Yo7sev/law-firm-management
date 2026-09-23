@@ -47,7 +47,7 @@ class Case(models.Model):
 
     client = models.ForeignKey(
         "clients.Client",
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="cases",
     )
 

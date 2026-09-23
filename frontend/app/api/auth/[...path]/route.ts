@@ -1,10 +1,28 @@
-import { NextRequest, NextResponse } from "next/server";
-
 const DJANGO_BACKEND =
   process.env.DJANGO_BACKEND_URL || "http://127.0.0.1:8000";
 
-async function proxyRequest(request: NextRequest, path: string[]) {
-  const targetUrl = `${DJANGO_BACKEND}/api/auth/${path.join("/")}/`;
+type RouteContext = {
+  params: Promise<{
+    path: string[];
+  }>;
+};
+
+async function proxyRequest(
+  request: Request,
+  path: string[],
+): Promise<Response> {
+  const backendBaseUrl = DJANGO_BACKEND.replace(/\/+$/, "");
+
+  const normalizedPath = path
+    .filter(Boolean)
+    .map((part) => part.replace(/^\/+|\/+$/g, ""))
+    .join("/");
+
+  const requestUrl = new URL(request.url);
+
+  const targetUrl = `${backendBaseUrl}/api/auth/${normalizedPath}/${
+    requestUrl.search
+  }`;
 
   const headers = new Headers();
 
@@ -32,10 +50,18 @@ async function proxyRequest(request: NextRequest, path: string[]) {
     headers.set("authorization", authorization);
   }
 
+  const accept = request.headers.get("accept");
+
+  if (accept) {
+    headers.set("accept", accept);
+  }
+
   const method = request.method;
 
   const body =
-    method === "GET" || method === "HEAD" ? undefined : await request.text();
+    method === "GET" || method === "HEAD"
+      ? undefined
+      : await request.arrayBuffer();
 
   try {
     const backendResponse = await fetch(targetUrl, {
@@ -43,9 +69,10 @@ async function proxyRequest(request: NextRequest, path: string[]) {
       headers,
       body,
       cache: "no-store",
+      redirect: "follow",
     });
 
-    const responseBody = await backendResponse.text();
+    const responseBody = await backendResponse.arrayBuffer();
 
     const responseHeaders = new Headers();
 
@@ -55,18 +82,40 @@ async function proxyRequest(request: NextRequest, path: string[]) {
       responseHeaders.set("content-type", responseContentType);
     }
 
-    const setCookie = backendResponse.headers.get("set-cookie");
+    const contentDisposition = backendResponse.headers.get(
+      "content-disposition",
+    );
 
-    if (setCookie) {
-      responseHeaders.set("set-cookie", setCookie);
+    if (contentDisposition) {
+      responseHeaders.set("content-disposition", contentDisposition);
     }
 
-    return new NextResponse(responseBody, {
+    const cacheControl = backendResponse.headers.get("cache-control");
+
+    if (cacheControl) {
+      responseHeaders.set("cache-control", cacheControl);
+    }
+
+    /*
+     * Forward Django's session cookies to the browser.
+     */
+    const setCookieHeaders =
+      typeof backendResponse.headers.getSetCookie === "function"
+        ? backendResponse.headers.getSetCookie()
+        : [];
+
+    for (const setCookie of setCookieHeaders) {
+      responseHeaders.append("set-cookie", setCookie);
+    }
+
+    return new Response(responseBody, {
       status: backendResponse.status,
       headers: responseHeaders,
     });
-  } catch {
-    return NextResponse.json(
+  } catch (error) {
+    console.error("Django proxy error:", error);
+
+    return Response.json(
       {
         success: false,
         message:
@@ -79,45 +128,31 @@ async function proxyRequest(request: NextRequest, path: string[]) {
   }
 }
 
-export async function GET(
-  request: NextRequest,
-  context: {
-    params: Promise<{ path: string[] }>;
-  },
-) {
+export async function GET(request: Request, context: RouteContext) {
   const { path } = await context.params;
 
   return proxyRequest(request, path);
 }
 
-export async function POST(
-  request: NextRequest,
-  context: {
-    params: Promise<{ path: string[] }>;
-  },
-) {
+export async function POST(request: Request, context: RouteContext) {
   const { path } = await context.params;
 
   return proxyRequest(request, path);
 }
 
-export async function PUT(
-  request: NextRequest,
-  context: {
-    params: Promise<{ path: string[] }>;
-  },
-) {
+export async function PUT(request: Request, context: RouteContext) {
   const { path } = await context.params;
 
   return proxyRequest(request, path);
 }
 
-export async function DELETE(
-  request: NextRequest,
-  context: {
-    params: Promise<{ path: string[] }>;
-  },
-) {
+export async function PATCH(request: Request, context: RouteContext) {
+  const { path } = await context.params;
+
+  return proxyRequest(request, path);
+}
+
+export async function DELETE(request: Request, context: RouteContext) {
   const { path } = await context.params;
 
   return proxyRequest(request, path);

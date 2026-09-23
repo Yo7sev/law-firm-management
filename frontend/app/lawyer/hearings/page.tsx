@@ -1,13 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {
-  FormEvent,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type User = {
@@ -77,11 +71,7 @@ const emptyForm: HearingForm = {
   notes: "",
 };
 
-function getInitials(
-  firstName: string,
-  lastName: string,
-  email: string,
-) {
+function getInitials(firstName: string, lastName: string, email: string) {
   const first = firstName?.trim()?.charAt(0) || "";
   const last = lastName?.trim()?.charAt(0) || "";
 
@@ -142,10 +132,7 @@ function formatTime(time: string | null) {
 
   const [hours, minutes] = time.split(":").map(Number);
 
-  if (
-    Number.isNaN(hours) ||
-    Number.isNaN(minutes)
-  ) {
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) {
     return time;
   }
 
@@ -252,16 +239,13 @@ export default function HearingsPage() {
   const [showViewModal, setShowViewModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  const [editingHearing, setEditingHearing] =
-    useState<Hearing | null>(null);
+  const [editingHearing, setEditingHearing] = useState<Hearing | null>(null);
 
-  const [selectedHearing, setSelectedHearing] =
-    useState<Hearing | null>(null);
+  const [selectedHearing, setSelectedHearing] = useState<Hearing | null>(null);
 
   const [form, setForm] = useState<HearingForm>(emptyForm);
 
-  const [formErrors, setFormErrors] =
-    useState<Record<string, string>>({});
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const loadUser = useCallback(async () => {
     try {
@@ -279,21 +263,16 @@ export default function HearingsPage() {
 
       setUser(data.user);
     } catch {
-      setError(
-        "Unable to load your account information.",
-      );
+      setError("Unable to load your account information.");
     }
   }, [router]);
 
   const loadCases = useCallback(async () => {
     try {
-      const response = await fetch(
-        "/api/auth/cases/",
-        {
-          credentials: "include",
-          cache: "no-store",
-        },
-      );
+      const response = await fetch("/api/auth/cases/", {
+        credentials: "include",
+        cache: "no-store",
+      });
 
       if (response.status === 401) {
         router.push("/login");
@@ -303,9 +282,7 @@ export default function HearingsPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(
-          data.message || "Unable to load cases.",
-        );
+        throw new Error(data.message || "Unable to load cases.");
       }
 
       setCases(data.cases || []);
@@ -323,39 +300,25 @@ export default function HearingsPage() {
       const params = new URLSearchParams();
 
       if (search.trim()) {
-        params.set(
-          "search",
-          search.trim(),
-        );
+        params.set("search", search.trim());
       }
 
       if (caseFilter) {
-        params.set(
-          "case_id",
-          caseFilter,
-        );
+        params.set("case_id", caseFilter);
       }
 
       if (dateFrom) {
-        params.set(
-          "date_from",
-          dateFrom,
-        );
+        params.set("date_from", dateFrom);
       }
 
       if (dateTo) {
-        params.set(
-          "date_to",
-          dateTo,
-        );
+        params.set("date_to", dateTo);
       }
 
       const query = params.toString();
 
       const response = await fetch(
-        `/api/auth/hearings/${
-          query ? `?${query}` : ""
-        }`,
+        `/api/auth/hearings/${query ? `?${query}` : ""}`,
         {
           credentials: "include",
           cache: "no-store",
@@ -370,9 +333,7 @@ export default function HearingsPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(
-          data.message || "Unable to load hearings.",
-        );
+        throw new Error(data.message || "Unable to load hearings.");
       }
 
       setHearings(data.hearings || []);
@@ -383,23 +344,13 @@ export default function HearingsPage() {
           : "Unable to load hearings.",
       );
     }
-  }, [
-    caseFilter,
-    dateFrom,
-    dateTo,
-    router,
-    search,
-  ]);
+  }, [caseFilter, dateFrom, dateTo, router, search]);
 
   useEffect(() => {
     let cancelled = false;
 
     async function initializePage() {
-      await Promise.all([
-        loadUser(),
-        loadCases(),
-        loadHearings(),
-      ]);
+      await Promise.all([loadUser(), loadCases(), loadHearings()]);
 
       if (!cancelled) {
         setLoading(false);
@@ -411,11 +362,7 @@ export default function HearingsPage() {
     return () => {
       cancelled = true;
     };
-  }, [
-    loadCases,
-    loadHearings,
-    loadUser,
-  ]);
+  }, [loadCases, loadHearings, loadUser]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -433,30 +380,22 @@ export default function HearingsPage() {
 
     return [...hearings]
       .filter((hearing) => {
-        const date = parseDate(
-          hearing.hearing_date,
-        );
+        const date = parseDate(hearing.hearing_date);
 
         return date && date >= today;
       })
       .sort((a, b) => {
-        const dateA = parseDate(
-          a.hearing_date,
-        );
+        const dateA = parseDate(a.hearing_date);
 
-        const dateB = parseDate(
-          b.hearing_date,
-        );
+        const dateB = parseDate(b.hearing_date);
 
         if (!dateA || !dateB) {
           return 0;
         }
 
-        const timeA =
-          a.hearing_time || "23:59";
+        const timeA = a.hearing_time || "23:59";
 
-        const timeB =
-          b.hearing_time || "23:59";
+        const timeB = b.hearing_time || "23:59";
 
         return `${a.hearing_date}T${timeA}`.localeCompare(
           `${b.hearing_date}T${timeB}`,
@@ -466,12 +405,7 @@ export default function HearingsPage() {
   }, [hearings]);
 
   const todayCount = useMemo(
-    () =>
-      hearings.filter((hearing) =>
-        isToday(
-          hearing.hearing_date,
-        ),
-      ).length,
+    () => hearings.filter((hearing) => isToday(hearing.hearing_date)).length,
     [hearings],
   );
 
@@ -481,10 +415,7 @@ export default function HearingsPage() {
   );
 
   const unscheduledTimeCount = useMemo(
-    () =>
-      hearings.filter(
-        (hearing) => !hearing.hearing_time,
-      ).length,
+    () => hearings.filter((hearing) => !hearing.hearing_time).length,
     [hearings],
   );
 
@@ -493,9 +424,7 @@ export default function HearingsPage() {
     setSelectedHearing(null);
     setForm({
       ...emptyForm,
-      hearing_date: new Date()
-        .toISOString()
-        .split("T")[0],
+      hearing_date: new Date().toISOString().split("T")[0],
     });
     setFormErrors({});
     setError("");
@@ -508,13 +437,9 @@ export default function HearingsPage() {
     setSelectedHearing(null);
 
     setForm({
-      case_id: String(
-        hearing.case_id,
-      ),
-      hearing_date:
-        hearing.hearing_date,
-      hearing_time:
-        hearing.hearing_time || "",
+      case_id: String(hearing.case_id),
+      hearing_date: hearing.hearing_date,
+      hearing_time: hearing.hearing_time || "",
       court: hearing.court,
       judge: hearing.judge,
       purpose: hearing.purpose,
@@ -549,10 +474,7 @@ export default function HearingsPage() {
     setFormErrors({});
   }
 
-  function updateForm(
-    field: keyof HearingForm,
-    value: string,
-  ) {
+  function updateForm(field: keyof HearingForm, value: string) {
     setForm((current) => ({
       ...current,
       [field]: value,
@@ -573,9 +495,7 @@ export default function HearingsPage() {
     setDateTo("");
   }
 
-  async function handleSubmit(
-    event: FormEvent<HTMLFormElement>,
-  ) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     setSaving(true);
@@ -585,16 +505,13 @@ export default function HearingsPage() {
 
     const payload = {
       case_id: Number(form.case_id),
-      hearing_date:
-        form.hearing_date,
-      hearing_time:
-        form.hearing_time || null,
+      hearing_date: form.hearing_date,
+      hearing_time: form.hearing_time || null,
       court: form.court.trim(),
       judge: form.judge.trim(),
       purpose: form.purpose.trim(),
       result: form.result.trim(),
-      next_action:
-        form.next_action.trim(),
+      next_action: form.next_action.trim(),
       notes: form.notes.trim(),
     };
 
@@ -603,35 +520,23 @@ export default function HearingsPage() {
         ? `/api/auth/hearings/${editingHearing.id}/`
         : "/api/auth/hearings/";
 
-      const response = await fetch(
-        url,
-        {
-          method: editingHearing
-            ? "PUT"
-            : "POST",
-          credentials: "include",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify(payload),
+      const response = await fetch(url, {
+        method: editingHearing ? "PUT" : "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify(payload),
+      });
 
-      const data =
-        await response.json();
+      const data = await response.json();
 
       if (!response.ok) {
         if (data.errors) {
-          setFormErrors(
-            data.errors,
-          );
+          setFormErrors(data.errors);
         }
 
-        throw new Error(
-          data.message ||
-            "Unable to save the hearing.",
-        );
+        throw new Error(data.message || "Unable to save the hearing.");
       }
 
       setShowFormModal(false);
@@ -674,21 +579,15 @@ export default function HearingsPage() {
         },
       );
 
-      const data =
-        await response.json();
+      const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(
-          data.message ||
-            "Unable to delete the hearing.",
-        );
+        throw new Error(data.message || "Unable to delete the hearing.");
       }
 
       setShowDeleteModal(false);
       setSelectedHearing(null);
-      setSuccess(
-        "Hearing deleted successfully.",
-      );
+      setSuccess("Hearing deleted successfully.");
 
       await loadHearings();
     } catch (requestError) {
@@ -704,13 +603,10 @@ export default function HearingsPage() {
 
   async function handleLogout() {
     try {
-      await fetch(
-        "/api/auth/logout/",
-        {
-          method: "POST",
-          credentials: "include",
-        },
-      );
+      await fetch("/api/auth/logout/", {
+        method: "POST",
+        credentials: "include",
+      });
     } finally {
       router.push("/login");
     }
@@ -721,22 +617,15 @@ export default function HearingsPage() {
       <div className="flex min-h-screen">
         <aside className="hidden w-64 shrink-0 border-r border-slate-800 bg-slate-950 lg:flex lg:flex-col">
           <div className="flex h-20 items-center border-b border-slate-800 px-6">
-            <Link
-              href="/lawyer"
-              className="flex items-center gap-3"
-            >
+            <Link href="/lawyer" className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-sm font-bold text-slate-950">
                 LF
               </div>
 
               <div>
-                <p className="text-sm font-semibold text-white">
-                  LawFirm
-                </p>
+                <p className="text-sm font-semibold text-white">LawFirm</p>
 
-                <p className="text-xs text-slate-500">
-                  Management System
-                </p>
+                <p className="text-xs text-slate-500">Management System</p>
               </div>
             </Link>
           </div>
@@ -803,24 +692,17 @@ export default function HearingsPage() {
             <div className="mb-3 flex items-center gap-3 rounded-xl bg-slate-900 p-3">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-700 text-xs font-semibold text-white">
                 {user
-                  ? getInitials(
-                      user.first_name,
-                      user.last_name,
-                      user.email,
-                    )
+                  ? getInitials(user.first_name, user.last_name, user.email)
                   : "U"}
               </div>
 
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-white">
-                  {user?.first_name ||
-                    user?.email ||
-                    "User"}
+                  {user?.first_name || user?.email || "User"}
                 </p>
 
                 <p className="truncate text-xs text-slate-500">
-                  {user?.role ||
-                    "Lawyer"}
+                  {user?.role || "Lawyer"}
                 </p>
               </div>
             </div>
@@ -857,22 +739,14 @@ export default function HearingsPage() {
 
               <button
                 type="button"
-                onClick={
-                  openCreateModal
-                }
+                onClick={openCreateModal}
                 className="flex shrink-0 items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-200"
               >
-                <span className="text-lg leading-none">
-                  +
-                </span>
+                <span className="text-lg leading-none">+</span>
 
-                <span className="hidden sm:inline">
-                  New Hearing
-                </span>
+                <span className="hidden sm:inline">New Hearing</span>
 
-                <span className="sm:hidden">
-                  New
-                </span>
+                <span className="sm:hidden">New</span>
               </button>
             </div>
           </header>
@@ -884,9 +758,7 @@ export default function HearingsPage() {
 
                 <button
                   type="button"
-                  onClick={() =>
-                    setError("")
-                  }
+                  onClick={() => setError("")}
                   className="shrink-0 text-red-300 hover:text-white"
                   aria-label="Dismiss error"
                 >
@@ -901,9 +773,7 @@ export default function HearingsPage() {
 
                 <button
                   type="button"
-                  onClick={() =>
-                    setSuccess("")
-                  }
+                  onClick={() => setSuccess("")}
                   className="shrink-0 text-emerald-300 hover:text-white"
                   aria-label="Dismiss success message"
                 >
@@ -989,61 +859,46 @@ export default function HearingsPage() {
                 </div>
               ) : (
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-                  {upcomingHearings.map(
-                    (hearing) => (
-                      <button
-                        key={hearing.id}
-                        type="button"
-                        onClick={() =>
-                          openViewModal(
-                            hearing,
-                          )
-                        }
-                        className="group rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-left transition hover:border-slate-700 hover:bg-slate-900"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl bg-slate-800">
-                            <span className="text-lg font-semibold leading-none text-white">
-                              {getDayNumber(
-                                hearing.hearing_date,
-                              )}
-                            </span>
+                  {upcomingHearings.map((hearing) => (
+                    <button
+                      key={hearing.id}
+                      type="button"
+                      onClick={() => openViewModal(hearing)}
+                      className="group rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-left transition hover:border-slate-700 hover:bg-slate-900"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl bg-slate-800">
+                          <span className="text-lg font-semibold leading-none text-white">
+                            {getDayNumber(hearing.hearing_date)}
+                          </span>
 
-                            <span className="mt-1 text-[10px] uppercase text-slate-500">
-                              {getMonthShort(
-                                hearing.hearing_date,
-                              )}
-                            </span>
-                          </div>
-
-                          <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-[10px] font-medium text-emerald-400">
-                            {getDateLabel(
-                              hearing.hearing_date,
-                            )}
+                          <span className="mt-1 text-[10px] uppercase text-slate-500">
+                            {getMonthShort(hearing.hearing_date)}
                           </span>
                         </div>
 
-                        <p className="mt-4 truncate text-xs font-medium text-slate-500">
-                          {hearing.case.case_number}
-                        </p>
+                        <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-[10px] font-medium text-emerald-400">
+                          {getDateLabel(hearing.hearing_date)}
+                        </span>
+                      </div>
 
-                        <p className="mt-1 line-clamp-2 text-sm font-semibold text-white">
-                          {hearing.purpose}
-                        </p>
+                      <p className="mt-4 truncate text-xs font-medium text-slate-500">
+                        {hearing.case.case_number}
+                      </p>
 
-                        <p className="mt-3 truncate text-xs text-slate-500">
-                          {hearing.court ||
-                            "Court not specified"}
-                        </p>
+                      <p className="mt-1 line-clamp-2 text-sm font-semibold text-white">
+                        {hearing.purpose}
+                      </p>
 
-                        <p className="mt-1 text-xs text-slate-600">
-                          {formatTime(
-                            hearing.hearing_time,
-                          )}
-                        </p>
-                      </button>
-                    ),
-                  )}
+                      <p className="mt-3 truncate text-xs text-slate-500">
+                        {hearing.court || "Court not specified"}
+                      </p>
+
+                      <p className="mt-1 text-xs text-slate-600">
+                        {formatTime(hearing.hearing_time)}
+                      </p>
+                    </button>
+                  ))}
                 </div>
               )}
             </section>
@@ -1051,10 +906,7 @@ export default function HearingsPage() {
             <section className="mb-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 sm:p-5">
               <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_240px_170px_170px_auto]">
                 <div className="relative">
-                  <label
-                    htmlFor="hearing-search"
-                    className="sr-only"
-                  >
+                  <label htmlFor="hearing-search" className="sr-only">
                     Search hearings
                   </label>
 
@@ -1066,11 +918,7 @@ export default function HearingsPage() {
                     id="hearing-search"
                     type="search"
                     value={search}
-                    onChange={(event) =>
-                      setSearch(
-                        event.target.value,
-                      )
-                    }
+                    onChange={(event) => setSearch(event.target.value)}
                     placeholder="Search case, client, court, judge, purpose..."
                     className="w-full rounded-xl border border-slate-700 bg-slate-950 px-10 py-2.5 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-slate-500"
                   />
@@ -1078,25 +926,15 @@ export default function HearingsPage() {
 
                 <select
                   value={caseFilter}
-                  onChange={(event) =>
-                    setCaseFilter(
-                      event.target.value,
-                    )
-                  }
+                  onChange={(event) => setCaseFilter(event.target.value)}
                   className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-300 outline-none focus:border-slate-500"
                   aria-label="Filter by case"
                 >
-                  <option value="">
-                    All cases
-                  </option>
+                  <option value="">All cases</option>
 
                   {cases.map((legalCase) => (
-                    <option
-                      key={legalCase.id}
-                      value={legalCase.id}
-                    >
-                      {legalCase.case_number} —{" "}
-                      {legalCase.title}
+                    <option key={legalCase.id} value={legalCase.id}>
+                      {legalCase.case_number} — {legalCase.title}
                     </option>
                   ))}
                 </select>
@@ -1104,11 +942,7 @@ export default function HearingsPage() {
                 <input
                   type="date"
                   value={dateFrom}
-                  onChange={(event) =>
-                    setDateFrom(
-                      event.target.value,
-                    )
-                  }
+                  onChange={(event) => setDateFrom(event.target.value)}
                   className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-300 outline-none focus:border-slate-500"
                   aria-label="Date from"
                 />
@@ -1116,24 +950,15 @@ export default function HearingsPage() {
                 <input
                   type="date"
                   value={dateTo}
-                  onChange={(event) =>
-                    setDateTo(
-                      event.target.value,
-                    )
-                  }
+                  onChange={(event) => setDateTo(event.target.value)}
                   className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-300 outline-none focus:border-slate-500"
                   aria-label="Date to"
                 />
 
-                {(search ||
-                  caseFilter ||
-                  dateFrom ||
-                  dateTo) && (
+                {(search || caseFilter || dateFrom || dateTo) && (
                   <button
                     type="button"
-                    onClick={
-                      clearFilters
-                    }
+                    onClick={clearFilters}
                     className="rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-medium text-slate-400 transition hover:bg-slate-800 hover:text-white"
                   >
                     Clear
@@ -1162,25 +987,15 @@ export default function HearingsPage() {
                   </h2>
 
                   <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
-                    {search ||
-                    caseFilter ||
-                    dateFrom ||
-                    dateTo
+                    {search || caseFilter || dateFrom || dateTo
                       ? "Try changing your search or filters."
                       : "Create your first hearing to start tracking court appearances."}
                   </p>
 
-                  {!(
-                    search ||
-                    caseFilter ||
-                    dateFrom ||
-                    dateTo
-                  ) && (
+                  {!(search || caseFilter || dateFrom || dateTo) && (
                     <button
                       type="button"
-                      onClick={
-                        openCreateModal
-                      }
+                      onClick={openCreateModal}
                       className="mt-6 rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-slate-950 hover:bg-slate-200"
                     >
                       Create First Hearing
@@ -1221,287 +1036,201 @@ export default function HearingsPage() {
                         </thead>
 
                         <tbody className="divide-y divide-slate-800">
-                          {hearings.map(
-                            (hearing) => (
-                              <tr
-                                key={
-                                  hearing.id
-                                }
-                                className="transition hover:bg-slate-900"
-                              >
-                                <td className="px-5 py-4">
+                          {hearings.map((hearing) => (
+                            <tr
+                              key={hearing.id}
+                              className="transition hover:bg-slate-900"
+                            >
+                              <td className="px-5 py-4">
+                                <button
+                                  type="button"
+                                  onClick={() => openViewModal(hearing)}
+                                  className="text-left"
+                                >
+                                  <p className="text-sm font-semibold text-white">
+                                    {getDateLabel(hearing.hearing_date)}
+                                  </p>
+
+                                  <p className="mt-1 text-xs text-slate-500">
+                                    {formatTime(hearing.hearing_time)}
+                                  </p>
+                                </button>
+                              </td>
+
+                              <td className="px-5 py-4">
+                                <p className="text-sm font-semibold text-white">
+                                  {hearing.case.case_number}
+                                </p>
+
+                                <p className="mt-1 max-w-[220px] truncate text-xs text-slate-500">
+                                  {hearing.case.title}
+                                </p>
+
+                                <p className="mt-1 max-w-[220px] truncate text-xs text-slate-600">
+                                  {hearing.client.full_name}
+                                </p>
+                              </td>
+
+                              <td className="px-5 py-4">
+                                <p className="max-w-[220px] text-sm text-slate-300">
+                                  {hearing.purpose}
+                                </p>
+                              </td>
+
+                              <td className="px-5 py-4">
+                                <p className="max-w-[180px] truncate text-sm text-slate-300">
+                                  {hearing.court || "—"}
+                                </p>
+                              </td>
+
+                              <td className="px-5 py-4">
+                                <p className="max-w-[180px] truncate text-sm text-slate-300">
+                                  {hearing.judge || "—"}
+                                </p>
+                              </td>
+
+                              <td className="px-5 py-4">
+                                <div className="flex justify-end gap-2">
                                   <button
                                     type="button"
-                                    onClick={() =>
-                                      openViewModal(
-                                        hearing,
-                                      )
-                                    }
-                                    className="text-left"
+                                    onClick={() => openViewModal(hearing)}
+                                    className="rounded-lg px-3 py-2 text-xs font-medium text-slate-400 transition hover:bg-slate-800 hover:text-white"
                                   >
-                                    <p className="text-sm font-semibold text-white">
-                                      {getDateLabel(
-                                        hearing.hearing_date,
-                                      )}
-                                    </p>
-
-                                    <p className="mt-1 text-xs text-slate-500">
-                                      {formatTime(
-                                        hearing.hearing_time,
-                                      )}
-                                    </p>
+                                    View
                                   </button>
-                                </td>
 
-                                <td className="px-5 py-4">
-                                  <p className="text-sm font-semibold text-white">
-                                    {
-                                      hearing
-                                        .case
-                                        .case_number
-                                    }
-                                  </p>
+                                  <button
+                                    type="button"
+                                    onClick={() => openEditModal(hearing)}
+                                    className="rounded-lg px-3 py-2 text-xs font-medium text-slate-400 transition hover:bg-slate-800 hover:text-white"
+                                  >
+                                    Edit
+                                  </button>
 
-                                  <p className="mt-1 max-w-[220px] truncate text-xs text-slate-500">
-                                    {
-                                      hearing
-                                        .case
-                                        .title
-                                    }
-                                  </p>
-
-                                  <p className="mt-1 max-w-[220px] truncate text-xs text-slate-600">
-                                    {
-                                      hearing
-                                        .client
-                                        .full_name
-                                    }
-                                  </p>
-                                </td>
-
-                                <td className="px-5 py-4">
-                                  <p className="max-w-[220px] text-sm text-slate-300">
-                                    {
-                                      hearing.purpose
-                                    }
-                                  </p>
-                                </td>
-
-                                <td className="px-5 py-4">
-                                  <p className="max-w-[180px] truncate text-sm text-slate-300">
-                                    {hearing.court ||
-                                      "—"}
-                                  </p>
-                                </td>
-
-                                <td className="px-5 py-4">
-                                  <p className="max-w-[180px] truncate text-sm text-slate-300">
-                                    {hearing.judge ||
-                                      "—"}
-                                  </p>
-                                </td>
-
-                                <td className="px-5 py-4">
-                                  <div className="flex justify-end gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        openViewModal(
-                                          hearing,
-                                        )
-                                      }
-                                      className="rounded-lg px-3 py-2 text-xs font-medium text-slate-400 transition hover:bg-slate-800 hover:text-white"
-                                    >
-                                      View
-                                    </button>
-
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        openEditModal(
-                                          hearing,
-                                        )
-                                      }
-                                      className="rounded-lg px-3 py-2 text-xs font-medium text-slate-400 transition hover:bg-slate-800 hover:text-white"
-                                    >
-                                      Edit
-                                    </button>
-
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        openDeleteModal(
-                                          hearing,
-                                        )
-                                      }
-                                      className="rounded-lg px-3 py-2 text-xs font-medium text-red-400 transition hover:bg-red-500/10"
-                                    >
-                                      Delete
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            ),
-                          )}
+                                  <button
+                                    type="button"
+                                    onClick={() => openDeleteModal(hearing)}
+                                    className="rounded-lg px-3 py-2 text-xs font-medium text-red-400 transition hover:bg-red-500/10"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
                         </tbody>
                       </table>
                     </div>
                   </div>
 
                   <div className="space-y-3 lg:hidden">
-                    {hearings.map(
-                      (hearing) => (
-                        <article
-                          key={
-                            hearing.id
-                          }
-                          className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4"
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-xl bg-slate-800">
-                              <span className="text-lg font-semibold leading-none text-white">
-                                {getDayNumber(
-                                  hearing.hearing_date,
-                                )}
-                              </span>
+                    {hearings.map((hearing) => (
+                      <article
+                        key={hearing.id}
+                        className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-xl bg-slate-800">
+                            <span className="text-lg font-semibold leading-none text-white">
+                              {getDayNumber(hearing.hearing_date)}
+                            </span>
 
-                              <span className="mt-1 text-[10px] uppercase text-slate-500">
-                                {getMonthShort(
-                                  hearing.hearing_date,
-                                )}
-                              </span>
-                            </div>
-
-                            <div className="min-w-0 flex-1">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  openViewModal(
-                                    hearing,
-                                  )
-                                }
-                                className="text-left"
-                              >
-                                <p className="text-sm font-semibold text-white">
-                                  {
-                                    hearing
-                                      .case
-                                      .case_number
-                                  }
-                                </p>
-
-                                <p className="mt-1 line-clamp-2 text-sm text-slate-400">
-                                  {
-                                    hearing
-                                      .purpose
-                                  }
-                                </p>
-                              </button>
-
-                              <p className="mt-2 text-xs text-slate-500">
-                                {getDateLabel(
-                                  hearing.hearing_date,
-                                )}{" "}
-                                ·{" "}
-                                {formatTime(
-                                  hearing.hearing_time,
-                                )}
-                              </p>
-                            </div>
+                            <span className="mt-1 text-[10px] uppercase text-slate-500">
+                              {getMonthShort(hearing.hearing_date)}
+                            </span>
                           </div>
 
-                          <div className="mt-4 grid grid-cols-2 gap-3">
-                            <div>
-                              <p className="text-[11px] uppercase tracking-wide text-slate-600">
-                                Client
+                          <div className="min-w-0 flex-1">
+                            <button
+                              type="button"
+                              onClick={() => openViewModal(hearing)}
+                              className="text-left"
+                            >
+                              <p className="text-sm font-semibold text-white">
+                                {hearing.case.case_number}
                               </p>
 
-                              <p className="mt-1 truncate text-sm text-slate-300">
-                                {
-                                  hearing
-                                    .client
-                                    .full_name
-                                }
+                              <p className="mt-1 line-clamp-2 text-sm text-slate-400">
+                                {hearing.purpose}
                               </p>
-                            </div>
+                            </button>
 
-                            <div>
-                              <p className="text-[11px] uppercase tracking-wide text-slate-600">
-                                Court
-                              </p>
+                            <p className="mt-2 text-xs text-slate-500">
+                              {getDateLabel(hearing.hearing_date)} ·{" "}
+                              {formatTime(hearing.hearing_time)}
+                            </p>
+                          </div>
+                        </div>
 
-                              <p className="mt-1 truncate text-sm text-slate-300">
-                                {hearing.court ||
-                                  "—"}
-                              </p>
-                            </div>
+                        <div className="mt-4 grid grid-cols-2 gap-3">
+                          <div>
+                            <p className="text-[11px] uppercase tracking-wide text-slate-600">
+                              Client
+                            </p>
 
-                            <div>
-                              <p className="text-[11px] uppercase tracking-wide text-slate-600">
-                                Judge
-                              </p>
-
-                              <p className="mt-1 truncate text-sm text-slate-300">
-                                {hearing.judge ||
-                                  "—"}
-                              </p>
-                            </div>
-
-                            <div>
-                              <p className="text-[11px] uppercase tracking-wide text-slate-600">
-                                Case
-                              </p>
-
-                              <p className="mt-1 truncate text-sm text-slate-300">
-                                {
-                                  hearing
-                                    .case
-                                    .case_number
-                                }
-                              </p>
-                            </div>
+                            <p className="mt-1 truncate text-sm text-slate-300">
+                              {hearing.client.full_name}
+                            </p>
                           </div>
 
-                          <div className="mt-4 flex gap-2 border-t border-slate-800 pt-4">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                openViewModal(
-                                  hearing,
-                                )
-                              }
-                              className="flex-1 rounded-lg bg-slate-800 px-3 py-2.5 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white"
-                            >
-                              View
-                            </button>
+                          <div>
+                            <p className="text-[11px] uppercase tracking-wide text-slate-600">
+                              Court
+                            </p>
 
-                            <button
-                              type="button"
-                              onClick={() =>
-                                openEditModal(
-                                  hearing,
-                                )
-                              }
-                              className="flex-1 rounded-lg bg-slate-800 px-3 py-2.5 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white"
-                            >
-                              Edit
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                openDeleteModal(
-                                  hearing,
-                                )
-                              }
-                              className="flex-1 rounded-lg bg-red-500/10 px-3 py-2.5 text-xs font-medium text-red-400 hover:bg-red-500/20"
-                            >
-                              Delete
-                            </button>
+                            <p className="mt-1 truncate text-sm text-slate-300">
+                              {hearing.court || "—"}
+                            </p>
                           </div>
-                        </article>
-                      ),
-                    )}
+
+                          <div>
+                            <p className="text-[11px] uppercase tracking-wide text-slate-600">
+                              Judge
+                            </p>
+
+                            <p className="mt-1 truncate text-sm text-slate-300">
+                              {hearing.judge || "—"}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-[11px] uppercase tracking-wide text-slate-600">
+                              Case
+                            </p>
+
+                            <p className="mt-1 truncate text-sm text-slate-300">
+                              {hearing.case.case_number}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 flex gap-2 border-t border-slate-800 pt-4">
+                          <button
+                            type="button"
+                            onClick={() => openViewModal(hearing)}
+                            className="flex-1 rounded-lg bg-slate-800 px-3 py-2.5 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white"
+                          >
+                            View
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => openEditModal(hearing)}
+                            className="flex-1 rounded-lg bg-slate-800 px-3 py-2.5 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white"
+                          >
+                            Edit
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => openDeleteModal(hearing)}
+                            className="flex-1 rounded-lg bg-red-500/10 px-3 py-2.5 text-xs font-medium text-red-400 hover:bg-red-500/20"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </article>
+                    ))}
                   </div>
                 </>
               )}
@@ -1516,9 +1245,7 @@ export default function HearingsPage() {
             <div className="flex items-center justify-between border-b border-slate-800 px-5 py-4 sm:px-6">
               <div>
                 <h2 className="text-lg font-semibold text-white">
-                  {editingHearing
-                    ? "Edit Hearing"
-                    : "Create New Hearing"}
+                  {editingHearing ? "Edit Hearing" : "Create New Hearing"}
                 </h2>
 
                 <p className="mt-1 text-xs text-slate-500">
@@ -1530,9 +1257,7 @@ export default function HearingsPage() {
 
               <button
                 type="button"
-                onClick={
-                  closeFormModal
-                }
+                onClick={closeFormModal}
                 className="flex h-9 w-9 items-center justify-center rounded-lg text-xl text-slate-500 hover:bg-slate-800 hover:text-white"
                 aria-label="Close modal"
               >
@@ -1541,9 +1266,7 @@ export default function HearingsPage() {
             </div>
 
             <form
-              onSubmit={
-                handleSubmit
-              }
+              onSubmit={handleSubmit}
               className="flex min-h-0 flex-1 flex-col"
             >
               <div className="flex-1 overflow-y-auto px-5 py-5 sm:px-6">
@@ -1569,17 +1292,9 @@ export default function HearingsPage() {
 
                       <select
                         id="case_id"
-                        value={
-                          form.case_id
-                        }
-                        onChange={(
-                          event,
-                        ) =>
-                          updateForm(
-                            "case_id",
-                            event.target
-                              .value,
-                          )
+                        value={form.case_id}
+                        onChange={(event) =>
+                          updateForm("case_id", event.target.value)
                         }
                         className={`w-full rounded-xl border bg-slate-900 px-3 py-2.5 text-sm text-slate-200 outline-none focus:border-slate-500 ${
                           formErrors.case_id
@@ -1587,48 +1302,23 @@ export default function HearingsPage() {
                             : "border-slate-700"
                         }`}
                       >
-                        <option value="">
-                          Select a case
-                        </option>
+                        <option value="">Select a case</option>
 
-                        {cases.map(
-                          (legalCase) => (
-                            <option
-                              key={
-                                legalCase.id
-                              }
-                              value={
-                                legalCase.id
-                              }
-                            >
-                              {
-                                legalCase.case_number
-                              }{" "}
-                              —{" "}
-                              {
-                                legalCase.title
-                              }{" "}
-                              —{" "}
-                              {
-                                legalCase
-                                  .client
-                                  .full_name
-                              }
-                            </option>
-                          ),
-                        )}
+                        {cases.map((legalCase) => (
+                          <option key={legalCase.id} value={legalCase.id}>
+                            {legalCase.case_number} — {legalCase.title} —{" "}
+                            {legalCase.client.full_name}
+                          </option>
+                        ))}
                       </select>
 
                       {formErrors.case_id && (
                         <p className="mt-1.5 text-xs text-red-400">
-                          {
-                            formErrors.case_id
-                          }
+                          {formErrors.case_id}
                         </p>
                       )}
 
-                      {cases.length ===
-                        0 && (
+                      {cases.length === 0 && (
                         <p className="mt-1.5 text-xs text-amber-400">
                           No cases are available. Create a case first.
                         </p>
@@ -1646,17 +1336,9 @@ export default function HearingsPage() {
                       <input
                         id="hearing_date"
                         type="date"
-                        value={
-                          form.hearing_date
-                        }
-                        onChange={(
-                          event,
-                        ) =>
-                          updateForm(
-                            "hearing_date",
-                            event.target
-                              .value,
-                          )
+                        value={form.hearing_date}
+                        onChange={(event) =>
+                          updateForm("hearing_date", event.target.value)
                         }
                         className={`w-full rounded-xl border bg-slate-900 px-3 py-2.5 text-sm text-white outline-none focus:border-slate-500 ${
                           formErrors.hearing_date
@@ -1667,9 +1349,7 @@ export default function HearingsPage() {
 
                       {formErrors.hearing_date && (
                         <p className="mt-1.5 text-xs text-red-400">
-                          {
-                            formErrors.hearing_date
-                          }
+                          {formErrors.hearing_date}
                         </p>
                       )}
                     </div>
@@ -1685,17 +1365,9 @@ export default function HearingsPage() {
                       <input
                         id="hearing_time"
                         type="time"
-                        value={
-                          form.hearing_time
-                        }
-                        onChange={(
-                          event,
-                        ) =>
-                          updateForm(
-                            "hearing_time",
-                            event.target
-                              .value,
-                          )
+                        value={form.hearing_time}
+                        onChange={(event) =>
+                          updateForm("hearing_time", event.target.value)
                         }
                         className={`w-full rounded-xl border bg-slate-900 px-3 py-2.5 text-sm text-white outline-none focus:border-slate-500 ${
                           formErrors.hearing_time
@@ -1706,9 +1378,7 @@ export default function HearingsPage() {
 
                       {formErrors.hearing_time && (
                         <p className="mt-1.5 text-xs text-red-400">
-                          {
-                            formErrors.hearing_time
-                          }
+                          {formErrors.hearing_time}
                         </p>
                       )}
                     </div>
@@ -1736,17 +1406,9 @@ export default function HearingsPage() {
                       <input
                         id="court"
                         type="text"
-                        value={
-                          form.court
-                        }
-                        onChange={(
-                          event,
-                        ) =>
-                          updateForm(
-                            "court",
-                            event.target
-                              .value,
-                          )
+                        value={form.court}
+                        onChange={(event) =>
+                          updateForm("court", event.target.value)
                         }
                         placeholder="e.g. Amman Court of First Instance"
                         className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-slate-500"
@@ -1764,17 +1426,9 @@ export default function HearingsPage() {
                       <input
                         id="judge"
                         type="text"
-                        value={
-                          form.judge
-                        }
-                        onChange={(
-                          event,
-                        ) =>
-                          updateForm(
-                            "judge",
-                            event.target
-                              .value,
-                          )
+                        value={form.judge}
+                        onChange={(event) =>
+                          updateForm("judge", event.target.value)
                         }
                         placeholder="Judge name"
                         className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-slate-500"
@@ -1792,17 +1446,9 @@ export default function HearingsPage() {
                       <input
                         id="purpose"
                         type="text"
-                        value={
-                          form.purpose
-                        }
-                        onChange={(
-                          event,
-                        ) =>
-                          updateForm(
-                            "purpose",
-                            event.target
-                              .value,
-                          )
+                        value={form.purpose}
+                        onChange={(event) =>
+                          updateForm("purpose", event.target.value)
                         }
                         placeholder="e.g. First hearing, pleading, evidence review..."
                         className={`w-full rounded-xl border bg-slate-900 px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-slate-500 ${
@@ -1814,9 +1460,7 @@ export default function HearingsPage() {
 
                       {formErrors.purpose && (
                         <p className="mt-1.5 text-xs text-red-400">
-                          {
-                            formErrors.purpose
-                          }
+                          {formErrors.purpose}
                         </p>
                       )}
                     </div>
@@ -1843,17 +1487,9 @@ export default function HearingsPage() {
 
                       <textarea
                         id="result"
-                        value={
-                          form.result
-                        }
-                        onChange={(
-                          event,
-                        ) =>
-                          updateForm(
-                            "result",
-                            event.target
-                              .value,
-                          )
+                        value={form.result}
+                        onChange={(event) =>
+                          updateForm("result", event.target.value)
                         }
                         rows={4}
                         placeholder="Record what happened during the hearing..."
@@ -1871,17 +1507,9 @@ export default function HearingsPage() {
 
                       <textarea
                         id="next_action"
-                        value={
-                          form.next_action
-                        }
-                        onChange={(
-                          event,
-                        ) =>
-                          updateForm(
-                            "next_action",
-                            event.target
-                              .value,
-                          )
+                        value={form.next_action}
+                        onChange={(event) =>
+                          updateForm("next_action", event.target.value)
                         }
                         rows={3}
                         placeholder="What needs to happen next?"
@@ -1899,17 +1527,9 @@ export default function HearingsPage() {
 
                       <textarea
                         id="notes"
-                        value={
-                          form.notes
-                        }
-                        onChange={(
-                          event,
-                        ) =>
-                          updateForm(
-                            "notes",
-                            event.target
-                              .value,
-                          )
+                        value={form.notes}
+                        onChange={(event) =>
+                          updateForm("notes", event.target.value)
                         }
                         rows={4}
                         placeholder="Additional notes..."
@@ -1923,9 +1543,7 @@ export default function HearingsPage() {
               <div className="flex flex-col-reverse gap-3 border-t border-slate-800 bg-slate-950 px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
                 <button
                   type="button"
-                  onClick={
-                    closeFormModal
-                  }
+                  onClick={closeFormModal}
                   disabled={saving}
                   className="rounded-xl border border-slate-700 px-5 py-2.5 text-sm font-medium text-slate-300 transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -1934,10 +1552,7 @@ export default function HearingsPage() {
 
                 <button
                   type="submit"
-                  disabled={
-                    saving ||
-                    cases.length === 0
-                  }
+                  disabled={saving || cases.length === 0}
                   className="rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {saving
@@ -1952,288 +1567,224 @@ export default function HearingsPage() {
         </div>
       )}
 
-      {showViewModal &&
-        selectedHearing && (
-          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-4">
-            <div className="flex max-h-[95vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-3xl border border-slate-800 bg-slate-950 shadow-2xl sm:max-h-[90vh] sm:rounded-2xl">
-              <div className="flex items-start justify-between gap-4 border-b border-slate-800 px-5 py-4 sm:px-6">
-                <div className="min-w-0">
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-600">
+      {showViewModal && selectedHearing && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+          <div className="flex max-h-[95vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-3xl border border-slate-800 bg-slate-950 shadow-2xl sm:max-h-[90vh] sm:rounded-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-800 px-5 py-4 sm:px-6">
+              <div className="min-w-0">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-600">
+                  {selectedHearing.case.case_number}
+                </p>
+
+                <h2 className="mt-1 text-lg font-semibold text-white">
+                  {selectedHearing.purpose}
+                </h2>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  {selectedHearing.client.full_name}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowViewModal(false)}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-xl text-slate-500 hover:bg-slate-800 hover:text-white"
+                aria-label="Close modal"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+              <div className="mb-5 rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                  <div className="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-2xl bg-slate-800">
+                    <span className="text-xl font-semibold text-white">
+                      {getDayNumber(selectedHearing.hearing_date)}
+                    </span>
+
+                    <span className="text-xs uppercase text-slate-500">
+                      {getMonthShort(selectedHearing.hearing_date)}
+                    </span>
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-semibold text-white">
+                      {getDateLabel(selectedHearing.hearing_date)}
+                    </p>
+
+                    <p className="mt-1 text-sm text-slate-400">
+                      {formatLongDate(selectedHearing.hearing_date)}
+                    </p>
+
+                    <p className="mt-1 text-sm text-slate-500">
+                      {formatTime(selectedHearing.hearing_time)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+                  <p className="text-xs uppercase tracking-wide text-slate-600">
+                    Case
+                  </p>
+
+                  <p className="mt-2 text-sm font-medium text-white">
                     {selectedHearing.case.case_number}
                   </p>
 
-                  <h2 className="mt-1 text-lg font-semibold text-white">
-                    {selectedHearing.purpose}
-                  </h2>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {selectedHearing.case.title}
+                  </p>
+                </div>
 
-                  <p className="mt-1 text-sm text-slate-500">
+                <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+                  <p className="text-xs uppercase tracking-wide text-slate-600">
+                    Client
+                  </p>
+
+                  <p className="mt-2 text-sm font-medium text-white">
                     {selectedHearing.client.full_name}
                   </p>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() =>
-                    setShowViewModal(
-                      false,
-                    )
-                  }
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-xl text-slate-500 hover:bg-slate-800 hover:text-white"
-                  aria-label="Close modal"
-                >
-                  ×
-                </button>
-              </div>
+                <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+                  <p className="text-xs uppercase tracking-wide text-slate-600">
+                    Court
+                  </p>
 
-              <div className="flex-1 overflow-y-auto px-5 py-5 sm:px-6">
-                <div className="mb-5 rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                    <div className="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-2xl bg-slate-800">
-                      <span className="text-xl font-semibold text-white">
-                        {getDayNumber(
-                          selectedHearing.hearing_date,
-                        )}
-                      </span>
-
-                      <span className="text-xs uppercase text-slate-500">
-                        {getMonthShort(
-                          selectedHearing.hearing_date,
-                        )}
-                      </span>
-                    </div>
-
-                    <div>
-                      <p className="text-sm font-semibold text-white">
-                        {getDateLabel(
-                          selectedHearing.hearing_date,
-                        )}
-                      </p>
-
-                      <p className="mt-1 text-sm text-slate-400">
-                        {formatLongDate(
-                          selectedHearing.hearing_date,
-                        )}
-                      </p>
-
-                      <p className="mt-1 text-sm text-slate-500">
-                        {formatTime(
-                          selectedHearing.hearing_time,
-                        )}
-                      </p>
-                    </div>
-                  </div>
+                  <p className="mt-2 text-sm text-slate-300">
+                    {selectedHearing.court || "—"}
+                  </p>
                 </div>
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-                    <p className="text-xs uppercase tracking-wide text-slate-600">
-                      Case
-                    </p>
+                <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+                  <p className="text-xs uppercase tracking-wide text-slate-600">
+                    Judge
+                  </p>
 
-                    <p className="mt-2 text-sm font-medium text-white">
-                      {
-                        selectedHearing.case
-                          .case_number
-                      }
-                    </p>
-
-                    <p className="mt-1 text-xs text-slate-500">
-                      {
-                        selectedHearing.case
-                          .title
-                      }
-                    </p>
-                  </div>
-
-                  <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-                    <p className="text-xs uppercase tracking-wide text-slate-600">
-                      Client
-                    </p>
-
-                    <p className="mt-2 text-sm font-medium text-white">
-                      {
-                        selectedHearing.client
-                          .full_name
-                      }
-                    </p>
-                  </div>
-
-                  <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-                    <p className="text-xs uppercase tracking-wide text-slate-600">
-                      Court
-                    </p>
-
-                    <p className="mt-2 text-sm text-slate-300">
-                      {
-                        selectedHearing.court ||
-                        "—"
-                      }
-                    </p>
-                  </div>
-
-                  <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-                    <p className="text-xs uppercase tracking-wide text-slate-600">
-                      Judge
-                    </p>
-
-                    <p className="mt-2 text-sm text-slate-300">
-                      {
-                        selectedHearing.judge ||
-                        "—"
-                      }
-                    </p>
-                  </div>
-
-                  <div className="sm:col-span-2 rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-                    <p className="text-xs uppercase tracking-wide text-slate-600">
-                      Purpose
-                    </p>
-
-                    <p className="mt-2 text-sm leading-6 text-slate-300">
-                      {
-                        selectedHearing.purpose
-                      }
-                    </p>
-                  </div>
+                  <p className="mt-2 text-sm text-slate-300">
+                    {selectedHearing.judge || "—"}
+                  </p>
                 </div>
 
-                <div className="mt-4 space-y-4">
-                  <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-                    <p className="text-xs uppercase tracking-wide text-slate-600">
-                      Result
-                    </p>
+                <div className="sm:col-span-2 rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+                  <p className="text-xs uppercase tracking-wide text-slate-600">
+                    Purpose
+                  </p>
 
-                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-300">
-                      {
-                        selectedHearing.result ||
-                        "No result recorded yet."
-                      }
-                    </p>
-                  </div>
-
-                  <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-                    <p className="text-xs uppercase tracking-wide text-slate-600">
-                      Next Action
-                    </p>
-
-                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-300">
-                      {
-                        selectedHearing.next_action ||
-                        "No next action recorded."
-                      }
-                    </p>
-                  </div>
-
-                  <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-                    <p className="text-xs uppercase tracking-wide text-slate-600">
-                      Notes
-                    </p>
-
-                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-300">
-                      {
-                        selectedHearing.notes ||
-                        "No notes recorded."
-                      }
-                    </p>
-                  </div>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">
+                    {selectedHearing.purpose}
+                  </p>
                 </div>
               </div>
 
-              <div className="flex flex-col gap-3 border-t border-slate-800 px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setShowViewModal(
-                      false,
-                    )
-                  }
-                  className="rounded-xl border border-slate-700 px-5 py-2.5 text-sm font-medium text-slate-300 hover:bg-slate-900"
-                >
-                  Close
-                </button>
+              <div className="mt-4 space-y-4">
+                <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+                  <p className="text-xs uppercase tracking-wide text-slate-600">
+                    Result
+                  </p>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowViewModal(
-                      false,
-                    );
-                    openEditModal(
-                      selectedHearing,
-                    );
-                  }}
-                  className="rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-slate-950 hover:bg-slate-200"
-                >
-                  Edit Hearing
-                </button>
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-300">
+                    {selectedHearing.result || "No result recorded yet."}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+                  <p className="text-xs uppercase tracking-wide text-slate-600">
+                    Next Action
+                  </p>
+
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-300">
+                    {selectedHearing.next_action || "No next action recorded."}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+                  <p className="text-xs uppercase tracking-wide text-slate-600">
+                    Notes
+                  </p>
+
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-300">
+                    {selectedHearing.notes || "No notes recorded."}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        )}
 
-      {showDeleteModal &&
-        selectedHearing && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-            <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-950 p-6 shadow-2xl">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-500/10 text-xl text-red-400">
-                !
-              </div>
+            <div className="flex flex-col gap-3 border-t border-slate-800 px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
+              <button
+                type="button"
+                onClick={() => setShowViewModal(false)}
+                className="rounded-xl border border-slate-700 px-5 py-2.5 text-sm font-medium text-slate-300 hover:bg-slate-900"
+              >
+                Close
+              </button>
 
-              <h2 className="mt-5 text-lg font-semibold text-white">
-                Delete Hearing?
-              </h2>
-
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                You are about to delete the hearing for{" "}
-                <span className="font-medium text-slate-300">
-                  {
-                    selectedHearing
-                      .case
-                      .case_number
-                  }
-                </span>{" "}
-                scheduled for{" "}
-                <span className="font-medium text-slate-300">
-                  {formatDate(
-                    selectedHearing.hearing_date,
-                  )}
-                </span>
-                . This action cannot be undone.
-              </p>
-
-              <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowDeleteModal(
-                      false,
-                    );
-                    setSelectedHearing(
-                      null,
-                    );
-                  }}
-                  disabled={deleting}
-                  className="rounded-xl border border-slate-700 px-5 py-2.5 text-sm font-medium text-slate-300 hover:bg-slate-900 disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="button"
-                  onClick={
-                    handleDelete
-                  }
-                  disabled={deleting}
-                  className="rounded-xl bg-red-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {deleting
-                    ? "Deleting..."
-                    : "Delete Hearing"}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowViewModal(false);
+                  openEditModal(selectedHearing);
+                }}
+                className="rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-slate-950 hover:bg-slate-200"
+              >
+                Edit Hearing
+              </button>
             </div>
           </div>
-        )}
+        </div>
+      )}
+
+      {showDeleteModal && selectedHearing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-950 p-6 shadow-2xl">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-500/10 text-xl text-red-400">
+              !
+            </div>
+
+            <h2 className="mt-5 text-lg font-semibold text-white">
+              Delete Hearing?
+            </h2>
+
+            <p className="mt-2 text-sm leading-6 text-slate-500">
+              You are about to delete the hearing for{" "}
+              <span className="font-medium text-slate-300">
+                {selectedHearing.case.case_number}
+              </span>{" "}
+              scheduled for{" "}
+              <span className="font-medium text-slate-300">
+                {formatDate(selectedHearing.hearing_date)}
+              </span>
+              . This action cannot be undone.
+            </p>
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setSelectedHearing(null);
+                }}
+                disabled={deleting}
+                className="rounded-xl border border-slate-700 px-5 py-2.5 text-sm font-medium text-slate-300 hover:bg-slate-900 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="rounded-xl bg-red-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {deleting ? "Deleting..." : "Delete Hearing"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

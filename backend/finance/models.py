@@ -11,13 +11,13 @@ class FinancialTransaction(models.Model):
 
     client = models.ForeignKey(
         "clients.Client",
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="financial_transactions",
     )
 
     case = models.ForeignKey(
         "cases.Case",
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="financial_transactions",
         null=True,
         blank=True,
@@ -60,6 +60,7 @@ class FinancialTransaction(models.Model):
 
     class Meta:
         ordering = ["-transaction_date", "-created_at"]
+
         indexes = [
             models.Index(fields=["client"]),
             models.Index(fields=["case"]),
@@ -68,4 +69,8 @@ class FinancialTransaction(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.client.full_name} - {self.transaction_type} - {self.amount}"
+        return (
+            f"{self.client.full_name} - "
+            f"{self.transaction_type} - "
+            f"{self.amount}"
+        )

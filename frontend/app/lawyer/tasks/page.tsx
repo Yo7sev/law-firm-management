@@ -2,15 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  FormEvent,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-
-
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 type Case = {
   id: number;
@@ -72,17 +64,19 @@ type UpdateTaskResponse = {
   task?: Task;
 };
 
+type CurrentUser = {
+  id: number;
+  username: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+  approval_status?: string;
+};
+
 type CurrentUserResponse = {
-  success: boolean;
-  user?: {
-    id: number;
-    username: string;
-    email: string;
-    first_name: string;
-    last_name: string;
-    role: string;
-  };
-  message?: string;
+  authenticated: boolean;
+  user: CurrentUser | null;
 };
 
 const taskStatuses = [
@@ -121,9 +115,7 @@ function formatStatus(status: string) {
     default:
       return status
         .replace(/_/g, " ")
-        .replace(/\b\w/g, (character) =>
-          character.toUpperCase(),
-        );
+        .replace(/\b\w/g, (character) => character.toUpperCase());
   }
 }
 
@@ -203,9 +195,7 @@ function getDeadlineState(deadline: string | null, status: string) {
     return "overdue";
   }
 
-  const twoDaysFromNow = new Date(
-    now.getTime() + 2 * 24 * 60 * 60 * 1000,
-  );
+  const twoDaysFromNow = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
 
   if (deadlineDate.getTime() <= twoDaysFromNow.getTime()) {
     return "soon";
@@ -214,10 +204,7 @@ function getDeadlineState(deadline: string | null, status: string) {
   return "normal";
 }
 
-function getDeadlineClass(
-  deadline: string | null,
-  status: string,
-) {
+function getDeadlineClass(deadline: string | null, status: string) {
   switch (getDeadlineState(deadline, status)) {
     case "overdue":
       return "text-red-400";
@@ -230,14 +217,52 @@ function getDeadlineClass(
   }
 }
 
+async function getResponseMessage(
+  response: Response,
+  fallback: string,
+): Promise<string> {
+  try {
+    const data = await response.json();
+
+    if (data && typeof data.message === "string" && data.message.trim()) {
+      return data.message;
+    }
+
+    if (data && typeof data.detail === "string" && data.detail.trim()) {
+      return data.detail;
+    }
+  } catch {
+    // Ignore invalid/non-JSON response bodies.
+  }
+
+  if (response.status === 403) {
+    return "You are logged in, but you do not have permission to perform this action.";
+  }
+
+  if (response.status === 401) {
+    return "Your session has expired. Please log in again.";
+  }
+
+  return fallback;
+}
+
 export default function LawyerTasksPage() {
   const router = useRouter();
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [cases, setCases] = useState<Case[]>([]);
 
-  const [currentUser, setCurrentUser] =
-    useState<CurrentUserResponse["user"]>(undefined);
+  /*
+   * IMPORTANT:
+   * currentUser starts as null, not undefined.
+   * The /api/auth/me/ endpoint returns:
+   *
+   * {
+   *   authenticated: true,
+   *   user: {...}
+   * }
+   */
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [loadingCases, setLoadingCases] = useState(true);
@@ -249,56 +274,45 @@ export default function LawyerTasksPage() {
   const [caseFilter, setCaseFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
 
-  const [showCreateModal, setShowCreateModal] =
-    useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
 
-  const [showEditModal, setShowEditModal] =
-    useState(false);
-
-  const [editingTask, setEditingTask] =
-    useState<Task | null>(null);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   const [taskTitle, setTaskTitle] = useState("");
-  const [taskDescription, setTaskDescription] =
-    useState("");
+  const [taskDescription, setTaskDescription] = useState("");
   const [taskCaseId, setTaskCaseId] = useState("");
   const [taskDeadline, setTaskDeadline] = useState("");
   const [taskStatus, setTaskStatus] = useState("todo");
 
   const [savingTask, setSavingTask] = useState(false);
-  const [deletingId, setDeletingId] =
-    useState<number | null>(null);
-  const [updatingStatusId, setUpdatingStatusId] =
-    useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [updatingStatusId, setUpdatingStatusId] = useState<number | null>(null);
 
   const loadCurrentUser = useCallback(async () => {
     try {
-      const response = await fetch(
-        "/api/auth/me/",
-        {
-          method: "GET",
-          credentials: "include",
-          cache: "no-store",
-        },
-      );
+      const response = await fetch("/api/auth/me/", {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      });
 
-      if (
-        response.status === 401 ||
-        response.status === 403 ||
-        response.redirected
-      ) {
+      if (response.status === 401) {
         router.push("/login");
         return;
       }
 
-      const data: CurrentUserResponse =
-        await response.json();
+      const data: CurrentUserResponse = await response.json();
 
-      if (!response.ok || !data.success) {
+      if (!response.ok) {
         throw new Error(
-          data.message ||
-            "Unable to load the current user.",
+          `Unable to load the current user. Status: ${response.status}`,
         );
+      }
+
+      if (!data.authenticated || !data.user) {
+        router.push("/login");
+        return;
       }
 
       setCurrentUser(data.user);
@@ -316,32 +330,21 @@ export default function LawyerTasksPage() {
     try {
       setLoadingCases(true);
 
-      const response = await fetch(
-        "/api/auth/cases/",
-        {
-          method: "GET",
-          credentials: "include",
-          cache: "no-store",
-        },
-      );
+      const response = await fetch("/api/auth/cases/", {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      });
 
-      if (
-        response.status === 401 ||
-        response.status === 403 ||
-        response.redirected
-      ) {
+      if (response.status === 401) {
         router.push("/login");
         return;
       }
 
-      const data: CasesResponse =
-        await response.json();
+      const data: CasesResponse = await response.json();
 
       if (!response.ok || !data.success) {
-        throw new Error(
-          data.message ||
-            "Unable to load cases.",
-        );
+        throw new Error(data.message || "Unable to load cases.");
       }
 
       setCases(data.cases || []);
@@ -365,34 +368,21 @@ export default function LawyerTasksPage() {
       const params = new URLSearchParams();
 
       if (search.trim()) {
-        params.set(
-          "search",
-          search.trim(),
-        );
+        params.set("search", search.trim());
       }
 
       if (caseFilter) {
-        params.set(
-          "case_id",
-          caseFilter,
-        );
+        params.set("case_id", caseFilter);
       }
 
       if (statusFilter) {
-        params.set(
-          "status",
-          statusFilter,
-        );
+        params.set("status", statusFilter);
       }
 
       const queryString = params.toString();
 
       const response = await fetch(
-        `/api/auth/tasks/${
-          queryString
-            ? `?${queryString}`
-            : ""
-        }`,
+        `/api/auth/tasks/${queryString ? `?${queryString}` : ""}`,
         {
           method: "GET",
           credentials: "include",
@@ -400,23 +390,15 @@ export default function LawyerTasksPage() {
         },
       );
 
-      if (
-        response.status === 401 ||
-        response.status === 403 ||
-        response.redirected
-      ) {
+      if (response.status === 401) {
         router.push("/login");
         return;
       }
 
-      const data: TasksResponse =
-        await response.json();
+      const data: TasksResponse = await response.json();
 
       if (!response.ok || !data.success) {
-        throw new Error(
-          data.message ||
-            "Unable to load tasks.",
-        );
+        throw new Error(data.message || "Unable to load tasks.");
       }
 
       setTasks(data.tasks || []);
@@ -430,12 +412,7 @@ export default function LawyerTasksPage() {
     } finally {
       setLoading(false);
     }
-  }, [
-    caseFilter,
-    router,
-    search,
-    statusFilter,
-  ]);
+  }, [caseFilter, router, search, statusFilter]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -465,21 +442,11 @@ export default function LawyerTasksPage() {
   const taskSummary = useMemo(() => {
     return {
       total: tasks.length,
-      todo: tasks.filter(
-        (task) => task.status === "todo",
-      ).length,
-      inProgress: tasks.filter(
-        (task) => task.status === "in_progress",
-      ).length,
-      completed: tasks.filter(
-        (task) => task.status === "completed",
-      ).length,
+      todo: tasks.filter((task) => task.status === "todo").length,
+      inProgress: tasks.filter((task) => task.status === "in_progress").length,
+      completed: tasks.filter((task) => task.status === "completed").length,
       overdue: tasks.filter(
-        (task) =>
-          getDeadlineState(
-            task.deadline,
-            task.status,
-          ) === "overdue",
+        (task) => getDeadlineState(task.deadline, task.status) === "overdue",
       ).length,
     };
   }, [tasks]);
@@ -512,15 +479,9 @@ export default function LawyerTasksPage() {
     setEditingTask(task);
 
     setTaskTitle(task.title);
-    setTaskDescription(
-      task.description || "",
-    );
-    setTaskCaseId(
-      String(task.case.id),
-    );
-    setTaskDeadline(
-      formatDateForInput(task.deadline),
-    );
+    setTaskDescription(task.description || "");
+    setTaskCaseId(String(task.case.id));
+    setTaskDeadline(formatDateForInput(task.deadline));
     setTaskStatus(task.status);
 
     setError("");
@@ -538,9 +499,7 @@ export default function LawyerTasksPage() {
     resetTaskForm();
   }
 
-  async function handleCreateTask(
-    event: FormEvent<HTMLFormElement>,
-  ) {
+  async function handleCreateTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!taskTitle.trim()) {
@@ -553,57 +512,50 @@ export default function LawyerTasksPage() {
       return;
     }
 
+    if (!currentUser) {
+      setError("Your user session is not ready. Please try again.");
+      return;
+    }
+
     try {
       setSavingTask(true);
       setError("");
       setSuccessMessage("");
 
-      const response = await fetch(
-        "/api/auth/tasks/",
-        {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            title: taskTitle.trim(),
-            description:
-              taskDescription.trim(),
-            case_id: Number(taskCaseId),
-            deadline:
-              taskDeadline
-                ? new Date(
-                    taskDeadline,
-                  ).toISOString()
-                : null,
-            status: taskStatus,
-            ...(currentUser?.id
-              ? {
-                  assigned_to_id:
-                    currentUser.id,
-                }
-              : {}),
-          }),
+      const response = await fetch("/api/auth/tasks/", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify({
+          title: taskTitle.trim(),
+          description: taskDescription.trim(),
+          case_id: Number(taskCaseId),
+          deadline: taskDeadline ? new Date(taskDeadline).toISOString() : null,
+          status: taskStatus,
+          assigned_to_id: currentUser.id,
+        }),
+      });
 
-      if (
-        response.status === 401 ||
-        response.status === 403
-      ) {
+      if (response.status === 401) {
         router.push("/login");
         return;
       }
 
-      const data: CreateTaskResponse =
-        await response.json();
+      if (response.status === 403) {
+        const message = await getResponseMessage(
+          response,
+          "You do not have permission to create tasks.",
+        );
+
+        throw new Error(message);
+      }
+
+      const data: CreateTaskResponse = await response.json();
 
       if (!response.ok || !data.success) {
-        throw new Error(
-          data.message ||
-            "Unable to create the task.",
-        );
+        throw new Error(data.message || "Unable to create the task.");
       }
 
       if (!data.task) {
@@ -612,14 +564,9 @@ export default function LawyerTasksPage() {
         );
       }
 
-      setTasks((currentTasks) => [
-        data.task!,
-        ...currentTasks,
-      ]);
+      setTasks((currentTasks) => [data.task as Task, ...currentTasks]);
 
-      setSuccessMessage(
-        "Task created successfully.",
-      );
+      setSuccessMessage("Task created successfully.");
 
       setShowCreateModal(false);
       resetTaskForm();
@@ -635,9 +582,7 @@ export default function LawyerTasksPage() {
     }
   }
 
-  async function handleEditTask(
-    event: FormEvent<HTMLFormElement>,
-  ) {
+  async function handleEditTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!editingTask) {
@@ -659,48 +604,40 @@ export default function LawyerTasksPage() {
       setError("");
       setSuccessMessage("");
 
-      const response = await fetch(
-        `/api/auth/tasks/${editingTask.id}/`,
-        {
-          method: "PUT",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            title: taskTitle.trim(),
-            description:
-              taskDescription.trim(),
-            case_id: Number(taskCaseId),
-            deadline:
-              taskDeadline
-                ? new Date(
-                    taskDeadline,
-                  ).toISOString()
-                : null,
-            status: taskStatus,
-            assigned_to_id:
-              editingTask.assigned_to.id,
-          }),
+      const response = await fetch(`/api/auth/tasks/${editingTask.id}/`, {
+        method: "PUT",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify({
+          title: taskTitle.trim(),
+          description: taskDescription.trim(),
+          case_id: Number(taskCaseId),
+          deadline: taskDeadline ? new Date(taskDeadline).toISOString() : null,
+          status: taskStatus,
+          assigned_to_id: editingTask.assigned_to.id,
+        }),
+      });
 
-      if (
-        response.status === 401 ||
-        response.status === 403
-      ) {
+      if (response.status === 401) {
         router.push("/login");
         return;
       }
 
-      const data: UpdateTaskResponse =
-        await response.json();
+      if (response.status === 403) {
+        const message = await getResponseMessage(
+          response,
+          "You do not have permission to update this task.",
+        );
+
+        throw new Error(message);
+      }
+
+      const data: UpdateTaskResponse = await response.json();
 
       if (!response.ok || !data.success) {
-        throw new Error(
-          data.message ||
-            "Unable to update the task.",
-        );
+        throw new Error(data.message || "Unable to update the task.");
       }
 
       if (!data.task) {
@@ -709,17 +646,15 @@ export default function LawyerTasksPage() {
         );
       }
 
+      const updatedTask = data.task;
+
       setTasks((currentTasks) =>
         currentTasks.map((task) =>
-          task.id === data.task?.id
-            ? data.task
-            : task,
+          task.id === updatedTask.id ? updatedTask : task,
         ),
       );
 
-      setSuccessMessage(
-        "Task updated successfully.",
-      );
+      setSuccessMessage("Task updated successfully.");
 
       closeEditModal();
     } catch (editError) {
@@ -734,10 +669,7 @@ export default function LawyerTasksPage() {
     }
   }
 
-  async function handleStatusChange(
-    task: Task,
-    status: string,
-  ) {
+  async function handleStatusChange(task: Task, status: string) {
     if (task.status === status) {
       return;
     }
@@ -747,43 +679,40 @@ export default function LawyerTasksPage() {
       setError("");
       setSuccessMessage("");
 
-      const response = await fetch(
-        `/api/auth/tasks/${task.id}/`,
-        {
-          method: "PUT",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            title: task.title,
-            description:
-              task.description || "",
-            case_id: task.case.id,
-            deadline: task.deadline,
-            status,
-            assigned_to_id:
-              task.assigned_to.id,
-          }),
+      const response = await fetch(`/api/auth/tasks/${task.id}/`, {
+        method: "PUT",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify({
+          title: task.title,
+          description: task.description || "",
+          case_id: task.case.id,
+          deadline: task.deadline,
+          status,
+          assigned_to_id: task.assigned_to.id,
+        }),
+      });
 
-      if (
-        response.status === 401 ||
-        response.status === 403
-      ) {
+      if (response.status === 401) {
         router.push("/login");
         return;
       }
 
-      const data: UpdateTaskResponse =
-        await response.json();
+      if (response.status === 403) {
+        const message = await getResponseMessage(
+          response,
+          "You do not have permission to change this task.",
+        );
+
+        throw new Error(message);
+      }
+
+      const data: UpdateTaskResponse = await response.json();
 
       if (!response.ok || !data.success) {
-        throw new Error(
-          data.message ||
-            "Unable to update the task status.",
-        );
+        throw new Error(data.message || "Unable to update the task status.");
       }
 
       if (!data.task) {
@@ -792,17 +721,15 @@ export default function LawyerTasksPage() {
         );
       }
 
+      const updatedTask = data.task;
+
       setTasks((currentTasks) =>
         currentTasks.map((item) =>
-          item.id === data.task?.id
-            ? data.task
-            : item,
+          item.id === updatedTask.id ? updatedTask : item,
         ),
       );
 
-      setSuccessMessage(
-        "Task status updated successfully.",
-      );
+      setSuccessMessage("Task status updated successfully.");
     } catch (statusError) {
       const message =
         statusError instanceof Error
@@ -829,40 +756,36 @@ export default function LawyerTasksPage() {
       setError("");
       setSuccessMessage("");
 
-      const response = await fetch(
-        `/api/auth/tasks/${task.id}/`,
-        {
-          method: "DELETE",
-          credentials: "include",
-        },
-      );
+      const response = await fetch(`/api/auth/tasks/${task.id}/`, {
+        method: "DELETE",
+        credentials: "include",
+      });
 
-      if (
-        response.status === 401 ||
-        response.status === 403
-      ) {
+      if (response.status === 401) {
         router.push("/login");
         return;
+      }
+
+      if (response.status === 403) {
+        const message = await getResponseMessage(
+          response,
+          "You do not have permission to delete this task.",
+        );
+
+        throw new Error(message);
       }
 
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        throw new Error(
-          data.message ||
-            "Unable to delete the task.",
-        );
+        throw new Error(data.message || "Unable to delete the task.");
       }
 
       setTasks((currentTasks) =>
-        currentTasks.filter(
-          (item) => item.id !== task.id,
-        ),
+        currentTasks.filter((item) => item.id !== task.id),
       );
 
-      setSuccessMessage(
-        "Task deleted successfully.",
-      );
+      setSuccessMessage("Task deleted successfully.");
     } catch (deleteError) {
       const message =
         deleteError instanceof Error
@@ -892,9 +815,7 @@ export default function LawyerTasksPage() {
               </div>
 
               <div className="min-w-0">
-                <p className="text-sm font-semibold">
-                  LawFirm
-                </p>
+                <p className="text-sm font-semibold">LawFirm</p>
 
                 <p className="truncate text-xs text-slate-500">
                   Management System
@@ -916,21 +837,21 @@ export default function LawyerTasksPage() {
                 </Link>
 
                 <Link
-                  href="/lawyer#clients"
+                  href="/lawyer/clients"
                   className="block rounded-lg px-3 py-2.5 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
                 >
                   Clients
                 </Link>
 
                 <Link
-                  href="/lawyer#cases"
+                  href="/lawyer/cases"
                   className="block rounded-lg px-3 py-2.5 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
                 >
                   Cases
                 </Link>
 
                 <Link
-                  href="/lawyer#hearings"
+                  href="/lawyer/hearings"
                   className="block rounded-lg px-3 py-2.5 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
                 >
                   Hearings
@@ -987,13 +908,9 @@ export default function LawyerTasksPage() {
               onClick={openCreateModal}
               className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-500 sm:px-4"
             >
-              <span className="hidden sm:inline">
-                Create Task
-              </span>
+              <span className="hidden sm:inline">Create Task</span>
 
-              <span className="sm:hidden">
-                Add Task
-              </span>
+              <span className="sm:hidden">Add Task</span>
             </button>
           </header>
 
@@ -1046,69 +963,49 @@ export default function LawyerTasksPage() {
               </h2>
 
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-                Track legal work, deadlines, case-related
-                actions, and task progress from one place.
+                Track legal work, deadlines, case-related actions, and task
+                progress from one place.
               </p>
             </div>
 
             <section className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
               <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4">
-                <p className="text-xs text-slate-600">
-                  Total
-                </p>
+                <p className="text-xs text-slate-600">Total</p>
 
                 <p className="mt-2 text-2xl font-semibold text-white">
-                  {loading
-                    ? "—"
-                    : taskSummary.total}
+                  {loading ? "—" : taskSummary.total}
                 </p>
               </div>
 
               <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4">
-                <p className="text-xs text-slate-600">
-                  To Do
-                </p>
+                <p className="text-xs text-slate-600">To Do</p>
 
                 <p className="mt-2 text-2xl font-semibold text-slate-300">
-                  {loading
-                    ? "—"
-                    : taskSummary.todo}
+                  {loading ? "—" : taskSummary.todo}
                 </p>
               </div>
 
               <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4">
-                <p className="text-xs text-slate-600">
-                  In Progress
-                </p>
+                <p className="text-xs text-slate-600">In Progress</p>
 
                 <p className="mt-2 text-2xl font-semibold text-blue-400">
-                  {loading
-                    ? "—"
-                    : taskSummary.inProgress}
+                  {loading ? "—" : taskSummary.inProgress}
                 </p>
               </div>
 
               <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4">
-                <p className="text-xs text-slate-600">
-                  Completed
-                </p>
+                <p className="text-xs text-slate-600">Completed</p>
 
                 <p className="mt-2 text-2xl font-semibold text-emerald-400">
-                  {loading
-                    ? "—"
-                    : taskSummary.completed}
+                  {loading ? "—" : taskSummary.completed}
                 </p>
               </div>
 
               <div className="rounded-2xl border border-red-900/30 bg-red-950/10 p-4">
-                <p className="text-xs text-slate-600">
-                  Overdue
-                </p>
+                <p className="text-xs text-slate-600">Overdue</p>
 
                 <p className="mt-2 text-2xl font-semibold text-red-400">
-                  {loading
-                    ? "—"
-                    : taskSummary.overdue}
+                  {loading ? "—" : taskSummary.overdue}
                 </p>
               </div>
             </section>
@@ -1127,9 +1024,7 @@ export default function LawyerTasksPage() {
                     id="task-search"
                     type="search"
                     value={search}
-                    onChange={(event) =>
-                      setSearch(event.target.value)
-                    }
+                    onChange={(event) => setSearch(event.target.value)}
                     placeholder="Title, description, case..."
                     className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-slate-700 focus:border-blue-700"
                   />
@@ -1146,27 +1041,17 @@ export default function LawyerTasksPage() {
                   <select
                     id="task-case-filter"
                     value={caseFilter}
-                    onChange={(event) =>
-                      setCaseFilter(event.target.value)
-                    }
+                    onChange={(event) => setCaseFilter(event.target.value)}
                     disabled={loadingCases}
                     className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none transition focus:border-blue-700 disabled:opacity-50"
                   >
-                    <option value="">
-                      All cases
-                    </option>
+                    <option value="">All cases</option>
 
-                    {filteredCases.map(
-                      (caseItem) => (
-                        <option
-                          key={caseItem.id}
-                          value={caseItem.id}
-                        >
-                          {caseItem.case_number} —{" "}
-                          {caseItem.title}
-                        </option>
-                      ),
-                    )}
+                    {filteredCases.map((caseItem) => (
+                      <option key={caseItem.id} value={caseItem.id}>
+                        {caseItem.case_number} — {caseItem.title}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -1181,27 +1066,16 @@ export default function LawyerTasksPage() {
                   <select
                     id="task-status-filter"
                     value={statusFilter}
-                    onChange={(event) =>
-                      setStatusFilter(
-                        event.target.value,
-                      )
-                    }
+                    onChange={(event) => setStatusFilter(event.target.value)}
                     className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none transition focus:border-blue-700"
                   >
-                    <option value="">
-                      All statuses
-                    </option>
+                    <option value="">All statuses</option>
 
-                    {taskStatuses.map(
-                      (status) => (
-                        <option
-                          key={status.value}
-                          value={status.value}
-                        >
-                          {status.label}
-                        </option>
-                      ),
-                    )}
+                    {taskStatuses.map((status) => (
+                      <option key={status.value} value={status.value}>
+                        {status.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -1211,15 +1085,11 @@ export default function LawyerTasksPage() {
                   {loading
                     ? "Loading tasks..."
                     : `${tasks.length} task${
-                        tasks.length === 1
-                          ? ""
-                          : "s"
+                        tasks.length === 1 ? "" : "s"
                       } found`}
                 </p>
 
-                {(search ||
-                  caseFilter ||
-                  statusFilter) && (
+                {(search || caseFilter || statusFilter) && (
                   <button
                     type="button"
                     onClick={clearFilters}
@@ -1234,30 +1104,28 @@ export default function LawyerTasksPage() {
             <section className="mt-6">
               {loading ? (
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {[1, 2, 3, 4, 5, 6].map(
-                    (item) => (
-                      <div
-                        key={item}
-                        className="animate-pulse rounded-2xl border border-slate-800 bg-slate-900/40 p-5"
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="h-5 w-3/5 rounded bg-slate-800" />
+                  {[1, 2, 3, 4, 5, 6].map((item) => (
+                    <div
+                      key={item}
+                      className="animate-pulse rounded-2xl border border-slate-800 bg-slate-900/40 p-5"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="h-5 w-3/5 rounded bg-slate-800" />
 
-                          <div className="h-5 w-20 rounded-full bg-slate-800" />
-                        </div>
-
-                        <div className="mt-4 h-3 w-4/5 rounded bg-slate-800" />
-
-                        <div className="mt-2 h-3 w-3/5 rounded bg-slate-800" />
-
-                        <div className="mt-5 h-3 w-full rounded bg-slate-800" />
-
-                        <div className="mt-2 h-3 w-4/5 rounded bg-slate-800" />
-
-                        <div className="mt-5 h-9 w-full rounded bg-slate-800" />
+                        <div className="h-5 w-20 rounded-full bg-slate-800" />
                       </div>
-                    ),
-                  )}
+
+                      <div className="mt-4 h-3 w-4/5 rounded bg-slate-800" />
+
+                      <div className="mt-2 h-3 w-3/5 rounded bg-slate-800" />
+
+                      <div className="mt-5 h-3 w-full rounded bg-slate-800" />
+
+                      <div className="mt-2 h-3 w-4/5 rounded bg-slate-800" />
+
+                      <div className="mt-5 h-9 w-full rounded bg-slate-800" />
+                    </div>
+                  ))}
                 </div>
               ) : tasks.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-slate-800 bg-slate-900/20 px-5 py-14 text-center">
@@ -1270,18 +1138,12 @@ export default function LawyerTasksPage() {
                   </h3>
 
                   <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">
-                    {search ||
-                    caseFilter ||
-                    statusFilter
+                    {search || caseFilter || statusFilter
                       ? "Try changing your search or filters."
                       : "Create your first task to start tracking legal work."}
                   </p>
 
-                  {!(
-                    search ||
-                    caseFilter ||
-                    statusFilter
-                  ) && (
+                  {!(search || caseFilter || statusFilter) && (
                     <button
                       type="button"
                       onClick={openCreateModal}
@@ -1311,17 +1173,17 @@ export default function LawyerTasksPage() {
                             task.status,
                           )}`}
                         >
-                          {task.status_display ||
-                            formatStatus(
-                              task.status,
-                            )}
+                          {task.status_display || formatStatus(task.status)}
                         </span>
                       </div>
 
                       <div className="mt-4">
-                        <p className="text-xs font-medium text-blue-400">
+                        <Link
+                          href={`/lawyer/cases?case_id=${task.case.id}`}
+                          className="text-xs font-medium text-blue-400 transition hover:text-blue-300 hover:underline"
+                        >
                           {task.case.case_number}
-                        </p>
+                        </Link>
 
                         <p
                           title={task.case.title}
@@ -1332,8 +1194,12 @@ export default function LawyerTasksPage() {
 
                         <p className="mt-1 truncate text-xs text-slate-600">
                           Client:{" "}
-                          {task.case.client
-                            .full_name}
+                          <Link
+                            href={`/lawyer/clients/${task.case.client.id}`}
+                            className="text-slate-400 transition hover:text-blue-400 hover:underline"
+                          >
+                            {task.case.client.full_name}
+                          </Link>
                         </p>
                       </div>
 
@@ -1345,9 +1211,7 @@ export default function LawyerTasksPage() {
 
                       <div className="mt-4 space-y-2.5 text-xs">
                         <div className="flex items-start justify-between gap-4">
-                          <span className="text-slate-600">
-                            Deadline
-                          </span>
+                          <span className="text-slate-600">Deadline</span>
 
                           <span
                             className={`text-right ${getDeadlineClass(
@@ -1355,14 +1219,9 @@ export default function LawyerTasksPage() {
                               task.status,
                             )}`}
                           >
-                            {formatDate(
-                              task.deadline,
-                            )}
+                            {formatDate(task.deadline)}
 
-                            {getDeadlineState(
-                              task.deadline,
-                              task.status,
-                            ) ===
+                            {getDeadlineState(task.deadline, task.status) ===
                               "overdue" && (
                               <span className="ml-1 font-medium">
                                 · Overdue
@@ -1372,18 +1231,13 @@ export default function LawyerTasksPage() {
                         </div>
 
                         <div className="flex items-start justify-between gap-4">
-                          <span className="text-slate-600">
-                            Assigned to
-                          </span>
+                          <span className="text-slate-600">Assigned to</span>
 
                           <span className="min-w-0 truncate text-right text-slate-400">
-                            {task.assigned_to
-                              .first_name ||
-                            task.assigned_to
-                              .last_name
+                            {task.assigned_to.first_name ||
+                            task.assigned_to.last_name
                               ? `${task.assigned_to.first_name} ${task.assigned_to.last_name}`.trim()
-                              : task.assigned_to
-                                  .email}
+                              : task.assigned_to.email}
                           </span>
                         </div>
                       </div>
@@ -1400,44 +1254,27 @@ export default function LawyerTasksPage() {
                           id={`status-${task.id}`}
                           value={task.status}
                           onChange={(event) =>
-                            void handleStatusChange(
-                              task,
-                              event.target.value,
-                            )
+                            void handleStatusChange(task, event.target.value)
                           }
                           disabled={
-                            updatingStatusId ===
-                              task.id ||
-                            deletingId ===
-                              task.id
+                            updatingStatusId === task.id ||
+                            deletingId === task.id
                           }
                           className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-300 outline-none focus:border-blue-700 disabled:opacity-50"
                         >
-                          {taskStatuses.map(
-                            (status) => (
-                              <option
-                                key={status.value}
-                                value={
-                                  status.value
-                                }
-                              >
-                                {status.label}
-                              </option>
-                            ),
-                          )}
+                          {taskStatuses.map((status) => (
+                            <option key={status.value} value={status.value}>
+                              {status.label}
+                            </option>
+                          ))}
                         </select>
                       </div>
 
                       <div className="mt-3 grid grid-cols-2 gap-2">
                         <button
                           type="button"
-                          onClick={() =>
-                            openEditModal(task)
-                          }
-                          disabled={
-                            deletingId ===
-                            task.id
-                          }
+                          onClick={() => openEditModal(task)}
+                          disabled={deletingId === task.id}
                           className="rounded-lg border border-blue-900/50 px-3 py-2.5 text-xs font-medium text-blue-400 transition hover:bg-blue-950/30 hover:text-blue-300 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           Edit
@@ -1445,21 +1282,11 @@ export default function LawyerTasksPage() {
 
                         <button
                           type="button"
-                          onClick={() =>
-                            void handleDelete(
-                              task,
-                            )
-                          }
-                          disabled={
-                            deletingId ===
-                            task.id
-                          }
+                          onClick={() => void handleDelete(task)}
+                          disabled={deletingId === task.id}
                           className="rounded-lg border border-red-900/40 px-3 py-2.5 text-xs font-medium text-red-400 transition hover:bg-red-950/30 disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          {deletingId ===
-                          task.id
-                            ? "Deleting..."
-                            : "Delete"}
+                          {deletingId === task.id ? "Deleting..." : "Delete"}
                         </button>
                       </div>
                     </article>
@@ -1476,17 +1303,14 @@ export default function LawyerTasksPage() {
                   </p>
 
                   <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-                    New tasks are currently assigned to the
-                    logged-in user. Staff assignment and
-                    team-wide task management will be connected
-                    when the Admin / Staff module is implemented.
+                    New tasks are currently assigned to the logged-in user.
+                    Staff assignment and team-wide task management will be
+                    connected when the Admin / Staff module is implemented.
                   </p>
                 </div>
 
                 <div className="shrink-0 rounded-full border border-blue-900/60 bg-blue-950/30 px-3 py-1.5 text-xs font-medium text-blue-300">
-                  {currentUser
-                    ? "Assigned to you"
-                    : "Loading"}
+                  {currentUser ? "Assigned to you" : "Loading"}
                 </div>
               </div>
             </div>
@@ -1504,8 +1328,7 @@ export default function LawyerTasksPage() {
                 </h2>
 
                 <p className="mt-1 text-xs text-slate-600">
-                  Create a legal task and associate it with a
-                  case.
+                  Create a legal task and associate it with a case.
                 </p>
               </div>
 
@@ -1520,10 +1343,7 @@ export default function LawyerTasksPage() {
               </button>
             </div>
 
-            <form
-              onSubmit={handleCreateTask}
-              className="space-y-5 p-5"
-            >
+            <form onSubmit={handleCreateTask} className="space-y-5 p-5">
               <div>
                 <label
                   htmlFor="create-task-title"
@@ -1536,11 +1356,7 @@ export default function LawyerTasksPage() {
                   id="create-task-title"
                   type="text"
                   value={taskTitle}
-                  onChange={(event) =>
-                    setTaskTitle(
-                      event.target.value,
-                    )
-                  }
+                  onChange={(event) => setTaskTitle(event.target.value)}
                   placeholder="e.g. Prepare court response"
                   disabled={savingTask}
                   className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-700 focus:border-blue-700"
@@ -1558,28 +1374,15 @@ export default function LawyerTasksPage() {
                 <select
                   id="create-task-case"
                   value={taskCaseId}
-                  onChange={(event) =>
-                    setTaskCaseId(
-                      event.target.value,
-                    )
-                  }
-                  disabled={
-                    savingTask ||
-                    loadingCases
-                  }
+                  onChange={(event) => setTaskCaseId(event.target.value)}
+                  disabled={savingTask || loadingCases}
                   className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none focus:border-blue-700 disabled:opacity-50"
                 >
-                  <option value="">
-                    Select case
-                  </option>
+                  <option value="">Select case</option>
 
                   {cases.map((caseItem) => (
-                    <option
-                      key={caseItem.id}
-                      value={caseItem.id}
-                    >
-                      {caseItem.case_number} —{" "}
-                      {caseItem.title}
+                    <option key={caseItem.id} value={caseItem.id}>
+                      {caseItem.case_number} — {caseItem.title}
                     </option>
                   ))}
                 </select>
@@ -1598,11 +1401,7 @@ export default function LawyerTasksPage() {
                     id="create-task-deadline"
                     type="datetime-local"
                     value={taskDeadline}
-                    onChange={(event) =>
-                      setTaskDeadline(
-                        event.target.value,
-                      )
-                    }
+                    onChange={(event) => setTaskDeadline(event.target.value)}
                     disabled={savingTask}
                     className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none focus:border-blue-700"
                   />
@@ -1619,24 +1418,15 @@ export default function LawyerTasksPage() {
                   <select
                     id="create-task-status"
                     value={taskStatus}
-                    onChange={(event) =>
-                      setTaskStatus(
-                        event.target.value,
-                      )
-                    }
+                    onChange={(event) => setTaskStatus(event.target.value)}
                     disabled={savingTask}
                     className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none focus:border-blue-700"
                   >
-                    {taskStatuses.map(
-                      (status) => (
-                        <option
-                          key={status.value}
-                          value={status.value}
-                        >
-                          {status.label}
-                        </option>
-                      ),
-                    )}
+                    {taskStatuses.map((status) => (
+                      <option key={status.value} value={status.value}>
+                        {status.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -1652,11 +1442,7 @@ export default function LawyerTasksPage() {
                 <textarea
                   id="create-task-description"
                   value={taskDescription}
-                  onChange={(event) =>
-                    setTaskDescription(
-                      event.target.value,
-                    )
-                  }
+                  onChange={(event) => setTaskDescription(event.target.value)}
                   placeholder="Optional task details..."
                   rows={5}
                   disabled={savingTask}
@@ -1666,8 +1452,7 @@ export default function LawyerTasksPage() {
 
               <div className="rounded-xl border border-blue-900/40 bg-blue-950/20 p-4">
                 <p className="text-xs leading-5 text-blue-300">
-                  This task will be assigned to your current
-                  account.
+                  This task will be assigned to your current account.
                 </p>
               </div>
 
@@ -1683,12 +1468,10 @@ export default function LawyerTasksPage() {
 
                 <button
                   type="submit"
-                  disabled={savingTask}
+                  disabled={savingTask || !currentUser}
                   className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {savingTask
-                    ? "Creating..."
-                    : "Create Task"}
+                  {savingTask ? "Creating..." : "Create Task"}
                 </button>
               </div>
             </form>
@@ -1721,10 +1504,7 @@ export default function LawyerTasksPage() {
               </button>
             </div>
 
-            <form
-              onSubmit={handleEditTask}
-              className="space-y-5 p-5"
-            >
+            <form onSubmit={handleEditTask} className="space-y-5 p-5">
               <div>
                 <label
                   htmlFor="edit-task-title"
@@ -1737,11 +1517,7 @@ export default function LawyerTasksPage() {
                   id="edit-task-title"
                   type="text"
                   value={taskTitle}
-                  onChange={(event) =>
-                    setTaskTitle(
-                      event.target.value,
-                    )
-                  }
+                  onChange={(event) => setTaskTitle(event.target.value)}
                   disabled={savingTask}
                   className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none focus:border-blue-700"
                 />
@@ -1758,28 +1534,15 @@ export default function LawyerTasksPage() {
                 <select
                   id="edit-task-case"
                   value={taskCaseId}
-                  onChange={(event) =>
-                    setTaskCaseId(
-                      event.target.value,
-                    )
-                  }
-                  disabled={
-                    savingTask ||
-                    loadingCases
-                  }
+                  onChange={(event) => setTaskCaseId(event.target.value)}
+                  disabled={savingTask || loadingCases}
                   className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none focus:border-blue-700 disabled:opacity-50"
                 >
-                  <option value="">
-                    Select case
-                  </option>
+                  <option value="">Select case</option>
 
                   {cases.map((caseItem) => (
-                    <option
-                      key={caseItem.id}
-                      value={caseItem.id}
-                    >
-                      {caseItem.case_number} —{" "}
-                      {caseItem.title}
+                    <option key={caseItem.id} value={caseItem.id}>
+                      {caseItem.case_number} — {caseItem.title}
                     </option>
                   ))}
                 </select>
@@ -1798,11 +1561,7 @@ export default function LawyerTasksPage() {
                     id="edit-task-deadline"
                     type="datetime-local"
                     value={taskDeadline}
-                    onChange={(event) =>
-                      setTaskDeadline(
-                        event.target.value,
-                      )
-                    }
+                    onChange={(event) => setTaskDeadline(event.target.value)}
                     disabled={savingTask}
                     className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none focus:border-blue-700"
                   />
@@ -1819,24 +1578,15 @@ export default function LawyerTasksPage() {
                   <select
                     id="edit-task-status"
                     value={taskStatus}
-                    onChange={(event) =>
-                      setTaskStatus(
-                        event.target.value,
-                      )
-                    }
+                    onChange={(event) => setTaskStatus(event.target.value)}
                     disabled={savingTask}
                     className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none focus:border-blue-700"
                   >
-                    {taskStatuses.map(
-                      (status) => (
-                        <option
-                          key={status.value}
-                          value={status.value}
-                        >
-                          {status.label}
-                        </option>
-                      ),
-                    )}
+                    {taskStatuses.map((status) => (
+                      <option key={status.value} value={status.value}>
+                        {status.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -1852,11 +1602,7 @@ export default function LawyerTasksPage() {
                 <textarea
                   id="edit-task-description"
                   value={taskDescription}
-                  onChange={(event) =>
-                    setTaskDescription(
-                      event.target.value,
-                    )
-                  }
+                  onChange={(event) => setTaskDescription(event.target.value)}
                   rows={5}
                   disabled={savingTask}
                   className="w-full resize-none rounded-lg border border-slate-800 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none focus:border-blue-700"
@@ -1864,18 +1610,13 @@ export default function LawyerTasksPage() {
               </div>
 
               <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
-                <p className="text-xs text-slate-600">
-                  Assigned to
-                </p>
+                <p className="text-xs text-slate-600">Assigned to</p>
 
                 <p className="mt-1 text-sm text-slate-300">
-                  {editingTask.assigned_to
-                    .first_name ||
-                  editingTask.assigned_to
-                    .last_name
+                  {editingTask.assigned_to.first_name ||
+                  editingTask.assigned_to.last_name
                     ? `${editingTask.assigned_to.first_name} ${editingTask.assigned_to.last_name}`.trim()
-                    : editingTask.assigned_to
-                        .email}
+                    : editingTask.assigned_to.email}
                 </p>
               </div>
 
@@ -1894,9 +1635,7 @@ export default function LawyerTasksPage() {
                   disabled={savingTask}
                   className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {savingTask
-                    ? "Saving changes..."
-                    : "Save Changes"}
+                  {savingTask ? "Saving changes..." : "Save Changes"}
                 </button>
               </div>
             </form>

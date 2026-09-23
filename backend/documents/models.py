@@ -13,13 +13,13 @@ class Document(models.Model):
 
     client = models.ForeignKey(
         "clients.Client",
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="documents",
     )
 
     case = models.ForeignKey(
         "cases.Case",
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="documents",
         null=True,
         blank=True,

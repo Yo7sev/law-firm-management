@@ -225,12 +225,8 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 
-# Django Allauth account adapter
 ACCOUNT_ADAPTER = "accounts.adapter.CustomAccountAdapter"
-
-
-# Django Allauth social account adapter
-SOCIALACCOUNT_ADAPTER = "accounts.adapter.CustomAccountAdapter"
+SOCIALACCOUNT_ADAPTER = "accounts.adapter.CustomSocialAccountAdapter"
 
 
 # Custom forms

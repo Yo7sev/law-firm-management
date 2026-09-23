@@ -11,7 +11,7 @@ class Task(models.Model):
 
     case = models.ForeignKey(
         "cases.Case",
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="tasks",
     )
 
@@ -50,6 +50,7 @@ class Task(models.Model):
 
     class Meta:
         ordering = ["status", "deadline"]
+
         indexes = [
             models.Index(fields=["deadline"]),
             models.Index(fields=["status"]),

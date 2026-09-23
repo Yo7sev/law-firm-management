@@ -4,7 +4,7 @@ from django.db import models
 class Hearing(models.Model):
     case = models.ForeignKey(
         "cases.Case",
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="hearings",
     )
 
@@ -51,6 +51,7 @@ class Hearing(models.Model):
 
     class Meta:
         ordering = ["hearing_date", "hearing_time"]
+
         indexes = [
             models.Index(fields=["hearing_date"]),
             models.Index(fields=["case"]),

@@ -74,43 +74,37 @@ type DashboardResponse = {
 const modules = [
   {
     title: "Clients",
-    description:
-      "Manage clients, contact information, and relationships.",
+    description: "Manage clients, contact information, and relationships.",
     href: "/lawyer/clients",
     icon: "C",
   },
   {
     title: "Cases",
-    description:
-      "Review active cases, case details, and legal matters.",
+    description: "Review active cases, case details, and legal matters.",
     href: "/lawyer/cases",
     icon: "⚖",
   },
   {
     title: "Hearings",
-    description:
-      "Track upcoming hearings, dates, courts, and schedules.",
+    description: "Track upcoming hearings, dates, courts, and schedules.",
     href: "/hearings",
     icon: "H",
   },
   {
     title: "Documents",
-    description:
-      "Access and organize case-related legal documents.",
+    description: "Access and organize case-related legal documents.",
     href: "/lawyer/documents",
     icon: "D",
   },
   {
     title: "Tasks",
-    description:
-      "Manage assignments, deadlines, and pending work.",
+    description: "Manage assignments, deadlines, and pending work.",
     href: "/lawyer/tasks",
     icon: "T",
   },
   {
     title: "Finance",
-    description:
-      "Review payments, expenses, invoices, and financial activity.",
+    description: "Review payments, expenses, invoices, and financial activity.",
     href: "#finance",
     icon: "$",
   },
@@ -224,8 +218,10 @@ export default function LawyerDashboard() {
   const router = useRouter();
 
   const [user, setUser] = useState<User | null>(null);
-  const [dashboard, setDashboard] =
-    useState<DashboardResponse["dashboard"] | null>(null);
+
+  const [dashboard, setDashboard] = useState<
+    DashboardResponse["dashboard"] | null
+  >(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -238,22 +234,35 @@ export default function LawyerDashboard() {
         setLoading(true);
         setError("");
 
-        const [meResponse, dashboardResponse] =
-          await Promise.all([
-            fetch("/api/auth/me/", {
-              method: "GET",
-              credentials: "include",
-              cache: "no-store",
-            }),
-            fetch("/api/auth/dashboard/", {
-              method: "GET",
-              credentials: "include",
-              cache: "no-store",
-            }),
-          ]);
+        /*
+         * ---------------------------------------------------------
+         * STEP 1: Load authenticated user first.
+         *
+         * IMPORTANT:
+         * Use the trailing slash because Django API endpoints use trailing slashes.
+         * because that is the working Next.js endpoint.
+         * ---------------------------------------------------------
+         */
+
+        const meResponse = await fetch("/api/auth/me/", {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        });
+
+        if (cancelled) {
+          return;
+        }
+
+        if (meResponse.status === 401) {
+          router.push("/login");
+          return;
+        }
 
         if (!meResponse.ok) {
-          throw new Error("Unable to load the current user.");
+          throw new Error(
+            `Unable to load the current user. Status: ${meResponse.status}`,
+          );
         }
 
         const meData: MeResponse = await meResponse.json();
@@ -263,30 +272,50 @@ export default function LawyerDashboard() {
           return;
         }
 
-        if (!dashboardResponse.ok) {
-          if (
-            dashboardResponse.status === 302 ||
-            dashboardResponse.status === 401
-          ) {
-            router.push("/login");
-            return;
-          }
+        /*
+         * Set the authenticated user immediately.
+         *
+         * This prevents the dashboard request from causing the
+         * "Unable to load the current user" message.
+         */
+        setUser(meData.user);
 
-          throw new Error("Unable to load dashboard data.");
+        /*
+         * ---------------------------------------------------------
+         * STEP 2: Load dashboard data separately.
+         * ---------------------------------------------------------
+         */
+
+        const dashboardResponse = await fetch("/api/auth/dashboard/", {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        });
+
+        if (cancelled) {
+          return;
         }
 
-        const dashboardData: DashboardResponse =
-          await dashboardResponse.json();
+        if (dashboardResponse.status === 401) {
+          router.push("/login");
+          return;
+        }
+
+        if (!dashboardResponse.ok) {
+          throw new Error(
+            `Unable to load dashboard data. Status: ${dashboardResponse.status}`,
+          );
+        }
+
+        const dashboardData: DashboardResponse = await dashboardResponse.json();
 
         if (!dashboardData.success) {
           throw new Error(
-            dashboardData.message ||
-              "Unable to load dashboard data.",
+            dashboardData.message || "Unable to load dashboard data.",
           );
         }
 
         if (!cancelled) {
-          setUser(meData.user);
           setDashboard(dashboardData.dashboard);
         }
       } catch (dashboardError) {
@@ -350,9 +379,7 @@ export default function LawyerDashboard() {
               </div>
 
               <div className="min-w-0">
-                <p className="text-sm font-semibold">
-                  LawFirm
-                </p>
+                <p className="text-sm font-semibold">LawFirm</p>
 
                 <p className="truncate text-xs text-slate-500">
                   Management System
@@ -420,7 +447,7 @@ export default function LawyerDashboard() {
 
             <div className="border-t border-slate-800 p-4">
               <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
-                {loading ? (
+                {loading && !user ? (
                   <div className="animate-pulse">
                     <div className="h-3 w-20 rounded bg-slate-800" />
                     <div className="mt-2 h-4 w-32 rounded bg-slate-800" />
@@ -469,7 +496,7 @@ export default function LawyerDashboard() {
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="hidden text-right md:block">
                 <p className="max-w-52 truncate text-sm font-medium text-white">
-                  {loading ? "Loading..." : displayName}
+                  {loading && !user ? "Loading..." : displayName}
                 </p>
 
                 <p className="text-xs text-slate-500">
@@ -509,7 +536,7 @@ export default function LawyerDashboard() {
 
             <div className="mb-8">
               <p className="mb-2 text-sm font-medium text-blue-400">
-                {loading
+                {loading && !user
                   ? "Loading your workspace..."
                   : `Welcome back, ${displayName}.`}
               </p>
@@ -519,25 +546,23 @@ export default function LawyerDashboard() {
               </h2>
 
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-                Review your cases, clients, hearings, documents,
-                and tasks from one centralized workspace.
+                Review your cases, clients, hearings, documents, and tasks from
+                one centralized workspace.
               </p>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm text-slate-500">
-                    Active Cases
-                  </p>
+                  <p className="text-sm text-slate-500">Active Cases</p>
 
                   <span className="text-blue-400">⚖</span>
                 </div>
 
                 <p className="mt-3 text-3xl font-semibold">
-                  {loading
+                  {loading && !dashboard
                     ? "—"
-                    : dashboard?.statistics.active_cases ?? 0}
+                    : (dashboard?.statistics.active_cases ?? 0)}
                 </p>
 
                 <p className="mt-2 text-xs text-slate-600">
@@ -551,17 +576,15 @@ export default function LawyerDashboard() {
                 className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 text-left transition hover:border-slate-700 hover:bg-slate-900"
               >
                 <div className="flex items-center justify-between">
-                  <p className="text-sm text-slate-500">
-                    Clients
-                  </p>
+                  <p className="text-sm text-slate-500">Clients</p>
 
                   <span className="text-blue-400">C</span>
                 </div>
 
                 <p className="mt-3 text-3xl font-semibold">
-                  {loading
+                  {loading && !dashboard
                     ? "—"
-                    : dashboard?.statistics.total_clients ?? 0}
+                    : (dashboard?.statistics.total_clients ?? 0)}
                 </p>
 
                 <p className="mt-2 text-xs text-slate-600">
@@ -571,17 +594,15 @@ export default function LawyerDashboard() {
 
               <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm text-slate-500">
-                    Upcoming Hearings
-                  </p>
+                  <p className="text-sm text-slate-500">Upcoming Hearings</p>
 
                   <span className="text-blue-400">H</span>
                 </div>
 
                 <p className="mt-3 text-3xl font-semibold">
-                  {loading
+                  {loading && !dashboard
                     ? "—"
-                    : dashboard?.statistics.upcoming_hearings ?? 0}
+                    : (dashboard?.statistics.upcoming_hearings ?? 0)}
                 </p>
 
                 <p className="mt-2 text-xs text-slate-600">
@@ -591,17 +612,15 @@ export default function LawyerDashboard() {
 
               <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm text-slate-500">
-                    Pending Tasks
-                  </p>
+                  <p className="text-sm text-slate-500">Pending Tasks</p>
 
                   <span className="text-blue-400">T</span>
                 </div>
 
                 <p className="mt-3 text-3xl font-semibold">
-                  {loading
+                  {loading && !dashboard
                     ? "—"
-                    : dashboard?.statistics.pending_tasks ?? 0}
+                    : (dashboard?.statistics.pending_tasks ?? 0)}
                 </p>
 
                 <p className="mt-2 text-xs text-slate-600">
@@ -612,9 +631,7 @@ export default function LawyerDashboard() {
 
             <div className="mt-10">
               <div className="mb-5">
-                <h2 className="text-lg font-semibold">
-                  Workspace modules
-                </h2>
+                <h2 className="text-lg font-semibold">Workspace modules</h2>
 
                 <p className="mt-1 text-sm text-slate-500">
                   Access the main areas of your legal practice.
@@ -688,9 +705,7 @@ export default function LawyerDashboard() {
               >
                 <div className="flex items-center justify-between border-b border-slate-800 px-5 py-4">
                   <div>
-                    <h2 className="text-base font-semibold">
-                      Recent cases
-                    </h2>
+                    <h2 className="text-base font-semibold">Recent cases</h2>
 
                     <p className="mt-1 text-xs text-slate-500">
                       Latest cases in your workspace
@@ -706,7 +721,7 @@ export default function LawyerDashboard() {
                 </div>
 
                 <div className="p-4">
-                  {loading ? (
+                  {loading && !dashboard ? (
                     <div className="space-y-3">
                       {[1, 2, 3].map((item) => (
                         <div
@@ -762,13 +777,11 @@ export default function LawyerDashboard() {
 
                           <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-slate-600">
                             <span>
-                              Type:{" "}
-                              {caseItem.case_type || "Not specified"}
+                              Type: {caseItem.case_type || "Not specified"}
                             </span>
 
                             <span>
-                              Opened:{" "}
-                              {formatDate(caseItem.opening_date)}
+                              Opened: {formatDate(caseItem.opening_date)}
                             </span>
                           </div>
                         </Link>
@@ -812,7 +825,7 @@ export default function LawyerDashboard() {
                 </div>
 
                 <div className="p-4">
-                  {loading ? (
+                  {loading && !dashboard ? (
                     <div className="space-y-3">
                       {[1, 2, 3].map((item) => (
                         <div
@@ -826,68 +839,54 @@ export default function LawyerDashboard() {
                     </div>
                   ) : dashboard?.upcoming_hearings.length ? (
                     <div className="space-y-3">
-                      {dashboard.upcoming_hearings.map(
-                        (hearing) => (
-                          <div
-                            key={hearing.id}
-                            className="rounded-xl border border-slate-800 bg-slate-950/50 p-4"
-                          >
-                            <div className="flex gap-4">
-                              <div className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-xl border border-blue-900/50 bg-blue-950/30 text-blue-300">
-                                <span className="text-[10px] font-medium uppercase">
-                                  {new Intl.DateTimeFormat(
-                                    "en-US",
-                                    {
-                                      month: "short",
-                                    },
-                                  ).format(
-                                    new Date(
-                                      `${hearing.hearing_date}T00:00:00`,
-                                    ),
-                                  )}
+                      {dashboard.upcoming_hearings.map((hearing) => (
+                        <div
+                          key={hearing.id}
+                          className="rounded-xl border border-slate-800 bg-slate-950/50 p-4"
+                        >
+                          <div className="flex gap-4">
+                            <div className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-xl border border-blue-900/50 bg-blue-950/30 text-blue-300">
+                              <span className="text-[10px] font-medium uppercase">
+                                {new Intl.DateTimeFormat("en-US", {
+                                  month: "short",
+                                }).format(
+                                  new Date(`${hearing.hearing_date}T00:00:00`),
+                                )}
+                              </span>
+
+                              <span className="text-base font-semibold">
+                                {new Date(
+                                  `${hearing.hearing_date}T00:00:00`,
+                                ).getDate()}
+                              </span>
+                            </div>
+
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-medium text-blue-400">
+                                {hearing.case_number}
+                              </p>
+
+                              <h3 className="mt-1 text-sm font-semibold text-white">
+                                {hearing.purpose}
+                              </h3>
+
+                              <p className="mt-1 truncate text-xs text-slate-500">
+                                {hearing.case_title}
+                              </p>
+
+                              <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-slate-600">
+                                <span>{formatTime(hearing.hearing_time)}</span>
+
+                                <span>
+                                  {hearing.court || "Court not specified"}
                                 </span>
 
-                                <span className="text-base font-semibold">
-                                  {new Date(
-                                    `${hearing.hearing_date}T00:00:00`,
-                                  ).getDate()}
-                                </span>
-                              </div>
-
-                              <div className="min-w-0 flex-1">
-                                <p className="text-xs font-medium text-blue-400">
-                                  {hearing.case_number}
-                                </p>
-
-                                <h3 className="mt-1 text-sm font-semibold text-white">
-                                  {hearing.purpose}
-                                </h3>
-
-                                <p className="mt-1 truncate text-xs text-slate-500">
-                                  {hearing.case_title}
-                                </p>
-
-                                <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-slate-600">
-                                  <span>
-                                    {formatTime(
-                                      hearing.hearing_time,
-                                    )}
-                                  </span>
-
-                                  <span>
-                                    {hearing.court ||
-                                      "Court not specified"}
-                                  </span>
-
-                                  <span>
-                                    Client: {hearing.client}
-                                  </span>
-                                </div>
+                                <span>Client: {hearing.client}</span>
                               </div>
                             </div>
                           </div>
-                        ),
-                      )}
+                        </div>
+                      ))}
                     </div>
                   ) : (
                     <div className="rounded-xl border border-dashed border-slate-800 px-5 py-10 text-center">
@@ -910,9 +909,7 @@ export default function LawyerDashboard() {
             >
               <div className="flex flex-col gap-2 border-b border-slate-800 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h2 className="text-base font-semibold">
-                    Recent documents
-                  </h2>
+                  <h2 className="text-base font-semibold">Recent documents</h2>
 
                   <p className="mt-1 text-xs text-slate-500">
                     Recently uploaded legal documents
@@ -928,7 +925,7 @@ export default function LawyerDashboard() {
               </div>
 
               <div className="p-4">
-                {loading ? (
+                {loading && !dashboard ? (
                   <div className="space-y-3">
                     {[1, 2, 3].map((item) => (
                       <div
@@ -942,57 +939,51 @@ export default function LawyerDashboard() {
                   </div>
                 ) : dashboard?.recent_documents.length ? (
                   <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                    {dashboard.recent_documents.map(
-                      (document) => (
-                        <div
-                          key={document.id}
-                          className="rounded-xl border border-slate-800 bg-slate-950/50 p-4"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-semibold text-white">
-                                {document.title}
-                              </p>
+                    {dashboard.recent_documents.map((document) => (
+                      <div
+                        key={document.id}
+                        className="rounded-xl border border-slate-800 bg-slate-950/50 p-4"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-white">
+                              {document.title}
+                            </p>
 
-                              <p className="mt-1 text-xs text-blue-400">
-                                {formatStatus(
-                                  document.document_type,
-                                )}
-                              </p>
-                            </div>
-
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-800 bg-slate-900 text-xs text-blue-400">
-                              D
-                            </div>
+                            <p className="mt-1 text-xs text-blue-400">
+                              {formatStatus(document.document_type)}
+                            </p>
                           </div>
 
-                          <div className="mt-4 space-y-2 text-xs text-slate-600">
-                            <p>
-                              Client:{" "}
-                              <span className="text-slate-500">
-                                {document.client}
-                              </span>
-                            </p>
-
-                            <p>
-                              Case:{" "}
-                              <span className="text-slate-500">
-                                {document.case || "Not linked"}
-                              </span>
-                            </p>
-
-                            <p>
-                              Uploaded:{" "}
-                              <span className="text-slate-500">
-                                {formatDateTime(
-                                  document.created_at,
-                                )}
-                              </span>
-                            </p>
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-800 bg-slate-900 text-xs text-blue-400">
+                            D
                           </div>
                         </div>
-                      ),
-                    )}
+
+                        <div className="mt-4 space-y-2 text-xs text-slate-600">
+                          <p>
+                            Client:{" "}
+                            <span className="text-slate-500">
+                              {document.client}
+                            </span>
+                          </p>
+
+                          <p>
+                            Case:{" "}
+                            <span className="text-slate-500">
+                              {document.case || "Not linked"}
+                            </span>
+                          </p>
+
+                          <p>
+                            Uploaded:{" "}
+                            <span className="text-slate-500">
+                              {formatDateTime(document.created_at)}
+                            </span>
+                          </p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ) : (
                   <div className="rounded-xl border border-dashed border-slate-800 px-5 py-10 text-center">
@@ -1016,9 +1007,9 @@ export default function LawyerDashboard() {
                   </p>
 
                   <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-                    Your Django authentication system is connected
-                    to the Next.js frontend. Dashboard information
-                    is now being loaded from the Django backend.
+                    Your Django authentication system is connected to the
+                    Next.js frontend. Dashboard information is now being loaded
+                    from the Django backend.
                   </p>
                 </div>
 
@@ -1028,24 +1019,14 @@ export default function LawyerDashboard() {
               </div>
             </div>
 
-            <div
-              id="clients"
-              className="h-px scroll-mt-24"
-            />
+            <div id="clients" className="h-px scroll-mt-24" />
 
-            <div
-              id="tasks"
-              className="h-px scroll-mt-24"
-            />
+            <div id="tasks" className="h-px scroll-mt-24" />
 
-            <div
-              id="finance"
-              className="h-px scroll-mt-24"
-            />
+            <div id="finance" className="h-px scroll-mt-24" />
           </div>
         </section>
       </div>
     </main>
   );
 }
-
