@@ -2,7 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type Client = {
   id: number;
@@ -199,9 +199,9 @@ export default function FinancePage() {
    * This replaces window.location.href and avoids the
    * @next/next/no-location-assign-relative-destination ESLint error.
    */
-  const redirectToLogin = () => {
+  const redirectToLogin = useCallback(() => {
     router.push("/login");
-  };
+  }, [router]);
 
   /*
    * Load clients and cases needed by the finance page.
@@ -274,7 +274,7 @@ export default function FinancePage() {
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [redirectToLogin]);
 
   /*
    * Load transactions whenever the filters change.
@@ -362,7 +362,7 @@ export default function FinancePage() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [router, search, typeFilter, clientFilter]);
+  }, [redirectToLogin, search, typeFilter, clientFilter]);
 
   async function reloadTransactions() {
     setLoading(true);
