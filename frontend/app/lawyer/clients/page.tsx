@@ -944,29 +944,38 @@ export default function ClientsPage() {
                           </td>
 
                           <td className="px-5 py-4">
-                            <Link
-                              href={`/lawyer/clients/${client.id}`}
-                              className="group flex w-fit items-center gap-3 rounded-xl -m-2 p-2 transition hover:bg-slate-800/60"
-                              aria-label={`Open ${client.full_name} profile`}
-                            >
-                              <div className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-xs font-semibold text-blue-400 transition group-hover:border-blue-600 group-hover:bg-blue-950/30">
-                                {getInitials(client.full_name)}
-                              </div>
+                            <div className="flex items-center justify-end gap-2">
+                              <Link
+                                href={`/lawyer/clients/${client.id}`}
+                                className="rounded-lg border border-slate-800 px-3 py-2 text-xs font-medium text-slate-300 transition hover:border-blue-700 hover:bg-blue-950/30 hover:text-blue-300"
+                              >
+                                Open
+                              </Link>
 
-                              <div>
-                                <p className="text-sm font-semibold text-white transition group-hover:text-blue-400">
-                                  {client.full_name}
-                                </p>
+                              <button
+                                type="button"
+                                onClick={() => openDetails(client)}
+                                className="rounded-lg border border-slate-800 px-3 py-2 text-xs font-medium text-slate-400 transition hover:bg-slate-900 hover:text-white"
+                              >
+                                View
+                              </button>
 
-                                <p className="mt-1 text-xs text-slate-600">
-                                  ID: {client.national_id || "Not provided"}
-                                </p>
+                              <button
+                                type="button"
+                                onClick={() => openEditModal(client)}
+                                className="rounded-lg border border-slate-800 px-3 py-2 text-xs font-medium text-slate-400 transition hover:bg-slate-900 hover:text-white"
+                              >
+                                Edit
+                              </button>
 
-                                <p className="mt-1 text-[11px] text-slate-600 opacity-0 transition group-hover:opacity-100">
-                                  Open client profile →
-                                </p>
-                              </div>
-                            </Link>
+                              <button
+                                type="button"
+                                onClick={() => openDeleteModal(client)}
+                                className="rounded-lg border border-red-900/60 px-3 py-2 text-xs font-medium text-red-400 transition hover:bg-red-950/30 hover:text-red-300"
+                              >
+                                Delete
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))
