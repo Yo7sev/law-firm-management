@@ -14,33 +14,41 @@ type CaseItem = {
   case_number: string;
   title: string;
   client_id?: number | null;
+  client_name?: string;
 };
 
 type FinancialTransaction = {
   id: number;
   client_id: number;
-  client_name: string;
+  client: {
+    id: number;
+    full_name: string;
+  };
   case_id: number | null;
-  case_number: string | null;
-  case_title: string | null;
+  case: {
+    id: number;
+    case_number: string;
+    title: string;
+  } | null;
   transaction_type: "invoice" | "payment" | "expense" | "refund";
   transaction_type_display: string;
   amount: string;
   transaction_date: string;
   description: string;
   reference: string;
+  recorded_by_id: number;
   recorded_by: string;
   created_at: string;
   updated_at: string;
 };
 
 type Statistics = {
-  total_transactions: number;
   total_invoices: string;
   total_payments: string;
   total_expenses: string;
   total_refunds: string;
   outstanding_balance: string;
+  transaction_count: number;
 };
 
 type TransactionsResponse = {
@@ -73,12 +81,12 @@ type TransactionForm = {
 };
 
 const emptyStatistics: Statistics = {
-  total_transactions: 0,
   total_invoices: "0.00",
   total_payments: "0.00",
   total_expenses: "0.00",
   total_refunds: "0.00",
   outstanding_balance: "0.00",
+  transaction_count: 0,
 };
 
 function getToday(): string {
@@ -168,9 +176,7 @@ export default function FinancePage() {
 
   const [clients, setClients] = useState<Client[]>([]);
   const [cases, setCases] = useState<CaseItem[]>([]);
-
   const [transactions, setTransactions] = useState<FinancialTransaction[]>([]);
-
   const [statistics, setStatistics] = useState<Statistics>(emptyStatistics);
 
   const [search, setSearch] = useState("");
@@ -277,9 +283,7 @@ export default function FinancePage() {
   }, [redirectToLogin]);
 
   /*
-   * Load transactions whenever the filters change.
-   *
-   * A small debounce prevents unnecessary requests while typing.
+   * Load transactions whenever filters change.
    */
   useEffect(() => {
     let cancelled = false;
@@ -418,7 +422,7 @@ export default function FinancePage() {
     }
   }
 
-  async function loadCasesForClient(clientId: string) {
+  function loadCasesForClient(clientId: string) {
     if (!clientId) {
       setFormCases([]);
       return;
@@ -438,7 +442,7 @@ export default function FinancePage() {
       case_id: "",
     }));
 
-    void loadCasesForClient(clientId);
+    loadCasesForClient(clientId);
   }
 
   function openCreateModal() {
@@ -675,7 +679,7 @@ export default function FinancePage() {
           <SummaryCard
             title="Invoices"
             value={formatMoney(statistics.total_invoices)}
-            subtitle={`${statistics.total_transactions} total transactions`}
+            subtitle={`${statistics.transaction_count} total transactions`}
             icon="INV"
           />
 
@@ -706,6 +710,7 @@ export default function FinancePage() {
           <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-lg font-semibold">Transactions</h2>
+
               <p className="text-sm text-slate-400">
                 Search and filter financial records.
               </p>
@@ -863,20 +868,20 @@ export default function FinancePage() {
 
                       <td className="px-5 py-4">
                         <div className="max-w-[220px] truncate text-sm font-medium text-slate-200">
-                          {transaction.client_name}
+                          {transaction.client.full_name}
                         </div>
                       </td>
 
                       <td className="px-5 py-4">
-                        {transaction.case_number ? (
+                        {transaction.case ? (
                           <div className="max-w-[220px]">
                             <div className="truncate text-sm text-slate-300">
-                              {transaction.case_number}
+                              {transaction.case.case_number}
                             </div>
 
-                            {transaction.case_title && (
+                            {transaction.case.title && (
                               <div className="truncate text-xs text-slate-500">
-                                {transaction.case_title}
+                                {transaction.case.title}
                               </div>
                             )}
                           </div>
@@ -893,9 +898,10 @@ export default function FinancePage() {
                             transaction.transaction_type,
                           )}`}
                         >
-                          {getTransactionTypeLabel(
-                            transaction.transaction_type,
-                          )}
+                          {transaction.transaction_type_display ||
+                            getTransactionTypeLabel(
+                              transaction.transaction_type,
+                            )}
                         </span>
                       </td>
 

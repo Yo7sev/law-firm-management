@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useState,
+  type Dispatch,
+  type FormEvent,
+  type ReactNode,
+  type SetStateAction,
+} from "react";
 
 type Client = {
   id: number;
@@ -74,6 +81,113 @@ type CaseType = {
   is_active?: boolean;
 };
 
+type HearingItem = {
+  id?: number;
+  hearing_date?: string | null;
+  date?: string | null;
+  scheduled_date?: string | null;
+  hearing_time?: string | null;
+  time?: string | null;
+  purpose?: string | null;
+  type?: string | null;
+  hearing_type?: string | null;
+  status?: string | null;
+  court?: string | null;
+  judge?: string | null;
+  [key: string]: unknown;
+};
+
+type DocumentItem = {
+  id?: number;
+  name?: string | null;
+  file_name?: string | null;
+  title?: string | null;
+  document_type?: string | null;
+  type?: string | null;
+  [key: string]: unknown;
+};
+
+type TaskItem = {
+  id?: number;
+  title?: string | null;
+  name?: string | null;
+  description?: string | null;
+  status?: string | null;
+  priority?: string | null;
+  deadline?: string | null;
+  due_date?: string | null;
+  [key: string]: unknown;
+};
+
+type FinancialTransaction = {
+  id?: number;
+  description?: string | null;
+  title?: string | null;
+  transaction_type?: string | null;
+  transaction_type_display?: string | null;
+  type?: string | null;
+  transaction_date?: string | null;
+  date?: string | null;
+  created_at?: string | null;
+  amount?: string | number | null;
+  value?: string | number | null;
+  client?: {
+    id: number;
+    full_name: string;
+  } | null;
+  case?: {
+    id: number;
+    case_number: string;
+    title: string;
+  } | null;
+  [key: string]: unknown;
+};
+
+type ActivityItem = {
+  id?: number | string;
+  title?: string | null;
+  action?: string | null;
+  event?: string | null;
+  description?: string | null;
+  created_at?: string | null;
+  timestamp?: string | null;
+  date?: string | null;
+  [key: string]: unknown;
+};
+
+type Statistics = {
+  cases?: number;
+  hearings?: number;
+  documents?: number;
+  tasks?: number;
+  transactions?: number;
+  transaction_count?: number;
+  total_invoiced?: string | number;
+  total_paid?: string | number;
+  total_expenses?: string | number;
+  total_refunds?: string | number;
+  balance?: string | number;
+
+  total_cases?: number;
+  active_cases?: number;
+  total_hearings?: number;
+  total_documents?: number;
+  pending_tasks?: number;
+  total_remaining?: number;
+};
+
+type ClientProfile = {
+  client: Client;
+  cases: CaseItem[];
+  hearings: HearingItem[];
+  documents: DocumentItem[];
+  tasks: TaskItem[];
+  transactions?: FinancialTransaction[];
+  financial_transactions?: FinancialTransaction[];
+  statistics: Statistics;
+  activity: ActivityItem[];
+};
+
 type CaseForm = {
   case_number: string;
   title: string;
@@ -88,36 +202,6 @@ type CaseForm = {
   opening_date: string;
   closing_date: string;
   description: string;
-};
-
-type ClientProfile = {
-  client: Client;
-  cases: CaseItem[];
-  hearings: any[];
-  documents: any[];
-  tasks: any[];
-  transactions?: any[];
-  financial_transactions?: any[];
-  statistics: {
-    cases?: number;
-    hearings?: number;
-    documents?: number;
-    tasks?: number;
-    transactions?: number;
-    total_invoiced?: string | number;
-    total_paid?: string | number;
-    total_expenses?: string | number;
-    total_refunds?: string | number;
-    balance?: string | number;
-
-    total_cases?: number;
-    active_cases?: number;
-    total_hearings?: number;
-    total_documents?: number;
-    pending_tasks?: number;
-    total_remaining?: number;
-  };
-  activity: any[];
 };
 
 type Tab =
@@ -139,6 +223,15 @@ type EditForm = {
   address: string;
   date_of_birth: string;
   notes: string;
+};
+
+type UnknownRecord = Record<string, unknown>;
+
+type ApiErrorResponse = {
+  message?: unknown;
+  error?: unknown;
+  detail?: unknown;
+  errors?: unknown;
 };
 
 const tabs: { id: Tab; label: string; icon: string }[] = [
@@ -210,11 +303,11 @@ export default function ClientProfilePage() {
           cache: "no-store",
         });
 
-        const data = await response.json();
+        const data: unknown = await response.json();
 
-        if (!response.ok || data?.success === false) {
+        if (!response.ok || isApiFailure(data)) {
           throw new Error(
-            data?.message ||
+            getApiMessage(data) ||
               `Failed to load client profile (${response.status})`,
           );
         }
@@ -248,11 +341,11 @@ export default function ClientProfilePage() {
       cache: "no-store",
     });
 
-    const data = await response.json();
+    const data: unknown = await response.json();
 
-    if (!response.ok || data?.success === false) {
+    if (!response.ok || isApiFailure(data)) {
       throw new Error(
-        data?.message ||
+        getApiMessage(data) ||
           `Failed to refresh client profile (${response.status})`,
       );
     }
@@ -282,17 +375,16 @@ export default function ClientProfilePage() {
         cache: "no-store",
       });
 
-      const data = await response.json();
+      const data: unknown = await response.json();
 
-      if (!response.ok || data?.success === false) {
+      if (!response.ok || isApiFailure(data)) {
         throw new Error(
-          data?.message || `Failed to load case types (${response.status})`,
+          getApiMessage(data) ||
+            `Failed to load case types (${response.status})`,
         );
       }
 
-      const types = Array.isArray(data)
-        ? data
-        : data.case_types || data.types || [];
+      const types = getCaseTypesFromResponse(data);
 
       setCaseTypes(types);
     } catch (err) {
@@ -427,9 +519,9 @@ export default function ClientProfilePage() {
         body: JSON.stringify(payload),
       });
 
-      const data = await response.json();
+      const data: unknown = await response.json();
 
-      if (!response.ok || data?.success === false) {
+      if (!response.ok || isApiFailure(data)) {
         throw new Error(
           extractApiError(data) ||
             `Failed to ${caseEditMode ? "update" : "create"} case (${response.status})`,
@@ -473,12 +565,19 @@ export default function ClientProfilePage() {
       body: JSON.stringify(form),
     });
 
-    const data = await response.json();
+    const data: unknown = await response.json();
 
-    if (!response.ok || data?.success === false) {
+    if (!response.ok || isApiFailure(data)) {
       throw new Error(
-        data?.message || `Failed to update client (${response.status})`,
+        getApiMessage(data) || `Failed to update client (${response.status})`,
       );
+    }
+
+    const record = asRecord(data);
+    const updatedClient = record?.client;
+
+    if (!isClient(updatedClient)) {
+      throw new Error("The server returned an invalid client response.");
     }
 
     setProfile((current) => {
@@ -488,7 +587,7 @@ export default function ClientProfilePage() {
 
       return {
         ...current,
-        client: data.client,
+        client: updatedClient,
       };
     });
 
@@ -839,7 +938,7 @@ function CaseModal({
 }: {
   client: Client;
   form: CaseForm;
-  setForm: React.Dispatch<React.SetStateAction<CaseForm>>;
+  setForm: Dispatch<SetStateAction<CaseForm>>;
   caseTypes: CaseType[];
   caseTypesLoading: boolean;
   saving: boolean;
@@ -1350,7 +1449,7 @@ function EditClientModal({
             <h2 className="text-xl font-bold text-slate-900">Edit Client</h2>
 
             <p className="mt-1 text-sm text-slate-500">
-              Update the client's personal and contact information.
+              Update the client&apos;s personal and contact information.
             </p>
           </div>
 
@@ -1546,9 +1645,9 @@ function OverviewTab({
 }: {
   client: Client;
   cases: CaseItem[];
-  hearings: any[];
-  tasks: any[];
-  statistics: ClientProfile["statistics"];
+  hearings: HearingItem[];
+  tasks: TaskItem[];
+  statistics: Statistics;
 }) {
   return (
     <div className="space-y-8">
@@ -1752,7 +1851,7 @@ function CasesTab({
    HEARINGS
 ========================================================= */
 
-function HearingsTab({ hearings }: { hearings: any[] }) {
+function HearingsTab({ hearings }: { hearings: HearingItem[] }) {
   return (
     <div>
       <SectionHeading
@@ -1825,7 +1924,7 @@ function HearingsTab({ hearings }: { hearings: any[] }) {
    DOCUMENTS
 ========================================================= */
 
-function DocumentsTab({ documents }: { documents: any[] }) {
+function DocumentsTab({ documents }: { documents: DocumentItem[] }) {
   return (
     <div>
       <SectionHeading
@@ -1891,7 +1990,7 @@ function DocumentsTab({ documents }: { documents: any[] }) {
    TASKS
 ========================================================= */
 
-function TasksTab({ tasks }: { tasks: any[] }) {
+function TasksTab({ tasks }: { tasks: TaskItem[] }) {
   return (
     <div>
       <SectionHeading
@@ -1955,8 +2054,8 @@ function FinanceTab({
   transactions,
   statistics,
 }: {
-  transactions: any[];
-  statistics: ClientProfile["statistics"];
+  transactions: FinancialTransaction[];
+  statistics: Statistics;
 }) {
   const totalPaid = Number(statistics.total_paid || 0);
 
@@ -2003,7 +2102,10 @@ function FinanceTab({
                 </div>
 
                 <div className="text-sm text-slate-500">
-                  {transaction.transaction_type || transaction.type || "—"}
+                  {transaction.transaction_type_display ||
+                    transaction.transaction_type ||
+                    transaction.type ||
+                    "—"}
                 </div>
 
                 <div className="text-sm text-slate-500">
@@ -2030,7 +2132,7 @@ function FinanceTab({
    ACTIVITY
 ========================================================= */
 
-function ActivityTab({ activity }: { activity: any[] }) {
+function ActivityTab({ activity }: { activity: ActivityItem[] }) {
   return (
     <div>
       <SectionHeading
@@ -2122,7 +2224,7 @@ function PreviewCases({ cases }: { cases: CaseItem[] }) {
   );
 }
 
-function PreviewHearings({ hearings }: { hearings: any[] }) {
+function PreviewHearings({ hearings }: { hearings: HearingItem[] }) {
   const preview = hearings.slice(0, 4);
 
   return (
@@ -2177,7 +2279,7 @@ function PreviewHearings({ hearings }: { hearings: any[] }) {
   );
 }
 
-function PreviewTasks({ tasks }: { tasks: any[] }) {
+function PreviewTasks({ tasks }: { tasks: TaskItem[] }) {
   const preview = tasks.slice(0, 4);
 
   return (
@@ -2416,89 +2518,175 @@ function PriorityBadge({ value }: { value?: string | null }) {
 }
 
 /* =========================================================
-   HELPERS
+   TYPE / API HELPERS
 ========================================================= */
 
-function normalizeProfile(data: any): ClientProfile {
-  const rawStatistics = data?.statistics || {};
+function asRecord(value: unknown): UnknownRecord | null {
+  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    return value as UnknownRecord;
+  }
 
-  const rawCases = Array.isArray(data?.cases) ? data.cases : [];
+  return null;
+}
 
-  /*
-   * Normalize case_type here.
-   *
-   * Backend normally returns:
-   *
-   * case_type: {
-   *   id: 1,
-   *   name: "Civil"
-   * }
-   *
-   * But this also supports a string or null.
-   */
-  const cases: CaseItem[] = rawCases.map((item: any) => {
-    const rawCaseType = item?.case_type;
+function isClient(value: unknown): value is Client {
+  const record = asRecord(value);
 
-    let normalizedCaseType: CaseItem["case_type"] = null;
-    let normalizedCaseTypeName = "";
+  return (
+    record !== null &&
+    typeof record.id === "number" &&
+    typeof record.full_name === "string"
+  );
+}
 
-    if (
-      rawCaseType &&
-      typeof rawCaseType === "object" &&
-      !Array.isArray(rawCaseType)
-    ) {
-      normalizedCaseType = {
-        id: Number(rawCaseType.id),
-        name: String(rawCaseType.name || ""),
-      };
+function isApiFailure(value: unknown): boolean {
+  const record = asRecord(value);
 
-      normalizedCaseTypeName = String(rawCaseType.name || "");
-    } else if (typeof rawCaseType === "string") {
-      normalizedCaseType = rawCaseType;
-      normalizedCaseTypeName = rawCaseType;
+  return record?.success === false;
+}
+
+function getApiMessage(value: unknown): string {
+  const record = asRecord(value);
+
+  if (!record) {
+    return "";
+  }
+
+  if (typeof record.message === "string") {
+    return record.message;
+  }
+
+  if (typeof record.error === "string") {
+    return record.error;
+  }
+
+  if (typeof record.detail === "string") {
+    return record.detail;
+  }
+
+  return "";
+}
+
+function getCaseTypesFromResponse(value: unknown): CaseType[] {
+  if (Array.isArray(value)) {
+    return value.filter(isCaseType);
+  }
+
+  const record = asRecord(value);
+
+  if (!record) {
+    return [];
+  }
+
+  const possibleTypes = [record.case_types, record.types];
+
+  for (const possible of possibleTypes) {
+    if (Array.isArray(possible)) {
+      return possible.filter(isCaseType);
     }
+  }
 
-    return {
-      ...item,
-      case_type: normalizedCaseType,
-      case_type_id:
-        item?.case_type_id ??
-        (rawCaseType &&
-        typeof rawCaseType === "object" &&
-        !Array.isArray(rawCaseType)
-          ? Number(rawCaseType.id)
-          : null),
-      case_type_name: item?.case_type_name || normalizedCaseTypeName,
-    };
-  });
+  return [];
+}
 
-  const hearings = Array.isArray(data?.hearings) ? data.hearings : [];
+function isCaseType(value: unknown): value is CaseType {
+  const record = asRecord(value);
 
-  const documents = Array.isArray(data?.documents) ? data.documents : [];
+  return (
+    record !== null &&
+    typeof record.id === "number" &&
+    typeof record.name === "string"
+  );
+}
 
-  const tasks = Array.isArray(data?.tasks) ? data.tasks : [];
+/* =========================================================
+   PROFILE NORMALIZATION
+========================================================= */
 
-  const transactions = Array.isArray(data?.transactions)
-    ? data.transactions
-    : Array.isArray(data?.financial_transactions)
-      ? data.financial_transactions
+function normalizeProfile(data: unknown): ClientProfile {
+  const record = asRecord(data);
+
+  if (!record) {
+    throw new Error("Invalid client profile response.");
+  }
+
+  const clientValue = record.client;
+
+  if (!isClient(clientValue)) {
+    throw new Error("The server returned an invalid client profile.");
+  }
+
+  const rawStatistics = asRecord(record.statistics) || {};
+
+  const rawCases = Array.isArray(record.cases) ? record.cases : [];
+
+  const cases: CaseItem[] = rawCases
+    .map((item) => normalizeCase(item))
+    .filter((item): item is CaseItem => item !== null);
+
+  const hearings: HearingItem[] = Array.isArray(record.hearings)
+    ? record.hearings
+        .map((item) => normalizeHearing(item))
+        .filter((item): item is HearingItem => item !== null)
+    : [];
+
+  const documents: DocumentItem[] = Array.isArray(record.documents)
+    ? record.documents
+        .map((item) => normalizeDocument(item))
+        .filter((item): item is DocumentItem => item !== null)
+    : [];
+
+  const tasks: TaskItem[] = Array.isArray(record.tasks)
+    ? record.tasks
+        .map((item) => normalizeTask(item))
+        .filter((item): item is TaskItem => item !== null)
+    : [];
+
+  const transactionsSource = Array.isArray(record.transactions)
+    ? record.transactions
+    : Array.isArray(record.financial_transactions)
+      ? record.financial_transactions
       : [];
 
+  const transactions: FinancialTransaction[] = transactionsSource
+    .map((item) => normalizeTransaction(item))
+    .filter((item): item is FinancialTransaction => item !== null);
+
+  const activity: ActivityItem[] = Array.isArray(record.activity)
+    ? record.activity
+        .map((item) => normalizeActivity(item))
+        .filter((item): item is ActivityItem => item !== null)
+    : [];
+
   const activeCases = cases.filter(
-    (item: CaseItem) => String(item.status || "").toLowerCase() === "active",
+    (item) => String(item.status || "").toLowerCase() === "active",
   ).length;
 
   return {
-    client: data.client,
+    client: clientValue,
     cases,
     hearings,
     documents,
     tasks,
     transactions,
     financial_transactions: transactions,
-    activity: Array.isArray(data?.activity) ? data.activity : [],
+    activity,
     statistics: {
-      ...rawStatistics,
+      cases: getOptionalNumber(rawStatistics.cases),
+      hearings: getOptionalNumber(rawStatistics.hearings),
+      documents: getOptionalNumber(rawStatistics.documents),
+      tasks: getOptionalNumber(rawStatistics.tasks),
+      transactions: getOptionalNumber(
+        rawStatistics.transactions ?? rawStatistics.transaction_count,
+      ),
+      transaction_count: getOptionalNumber(
+        rawStatistics.transaction_count ?? rawStatistics.transactions,
+      ),
+      total_invoiced: getNumberOrString(rawStatistics.total_invoiced),
+      total_paid: getNumberOrString(rawStatistics.total_paid),
+      total_expenses: getNumberOrString(rawStatistics.total_expenses),
+      total_refunds: getNumberOrString(rawStatistics.total_refunds),
+      balance: getNumberOrString(rawStatistics.balance),
 
       total_cases: getStatisticNumber(
         rawStatistics.cases,
@@ -2526,14 +2714,250 @@ function normalizeProfile(data: any): ClientProfile {
         tasks.length,
       ),
 
-      total_paid: Number(rawStatistics.total_paid || 0),
-
       total_remaining: Number(
         rawStatistics.balance ?? rawStatistics.total_remaining ?? 0,
       ),
     },
   };
 }
+
+function normalizeCase(value: unknown): CaseItem | null {
+  const record = asRecord(value);
+
+  if (!record || typeof record.id !== "number") {
+    return null;
+  }
+
+  const rawCaseType = record.case_type;
+
+  let normalizedCaseType: CaseItem["case_type"] = null;
+  let normalizedCaseTypeName = "";
+
+  if (
+    rawCaseType &&
+    typeof rawCaseType === "object" &&
+    !Array.isArray(rawCaseType)
+  ) {
+    const caseTypeRecord = rawCaseType as UnknownRecord;
+
+    normalizedCaseType = {
+      id: Number(caseTypeRecord.id),
+      name: String(caseTypeRecord.name || ""),
+    };
+
+    normalizedCaseTypeName = String(caseTypeRecord.name || "");
+  } else if (typeof rawCaseType === "string") {
+    normalizedCaseType = rawCaseType;
+    normalizedCaseTypeName = rawCaseType;
+  }
+
+  const assignedLawyer = normalizeAssignedLawyer(record.assigned_lawyer);
+
+  return {
+    id: record.id,
+    case_number:
+      typeof record.case_number === "string"
+        ? record.case_number
+        : `Case #${record.id}`,
+    title: typeof record.title === "string" ? record.title : "",
+    client_id: getNumber(record.client_id),
+    client: normalizeClientReference(record.client),
+    case_type: normalizedCaseType,
+    case_type_id:
+      getNumber(record.case_type_id) ??
+      (normalizedCaseType &&
+      typeof normalizedCaseType === "object" &&
+      !Array.isArray(normalizedCaseType)
+        ? normalizedCaseType.id
+        : null),
+    case_type_name:
+      typeof record.case_type_name === "string"
+        ? record.case_type_name
+        : normalizedCaseTypeName,
+    status: getString(record.status),
+    status_display: getString(record.status_display),
+    priority: getString(record.priority),
+    priority_display: getString(record.priority_display),
+    court: getString(record.court),
+    court_number: getString(record.court_number),
+    judge: getString(record.judge),
+    opposing_party: getString(record.opposing_party),
+    opposing_lawyer: getString(record.opposing_lawyer),
+    description: getString(record.description),
+    opening_date: getString(record.opening_date),
+    closing_date: getString(record.closing_date),
+    assigned_lawyer: assignedLawyer,
+    assigned_lawyer_id: getNumber(record.assigned_lawyer_id),
+    created_at: getString(record.created_at),
+    updated_at: getString(record.updated_at),
+  };
+}
+
+function normalizeClientReference(
+  value: unknown,
+): { id: number; full_name: string } | undefined {
+  const record = asRecord(value);
+
+  if (
+    !record ||
+    typeof record.id !== "number" ||
+    typeof record.full_name !== "string"
+  ) {
+    return undefined;
+  }
+
+  return {
+    id: record.id,
+    full_name: record.full_name,
+  };
+}
+
+function normalizeAssignedLawyer(value: unknown): CaseItem["assigned_lawyer"] {
+  const record = asRecord(value);
+
+  if (!record || typeof record.id !== "number") {
+    return null;
+  }
+
+  return {
+    id: record.id,
+    email: getString(record.email) || "",
+    first_name: getString(record.first_name),
+    last_name: getString(record.last_name),
+  };
+}
+
+function normalizeHearing(value: unknown): HearingItem | null {
+  const record = asRecord(value);
+
+  if (!record) {
+    return null;
+  }
+
+  return {
+    ...record,
+    id: getNumber(record.id),
+    hearing_date: getString(record.hearing_date),
+    date: getString(record.date),
+    scheduled_date: getString(record.scheduled_date),
+    hearing_time: getString(record.hearing_time),
+    time: getString(record.time),
+    purpose: getString(record.purpose),
+    type: getString(record.type),
+    hearing_type: getString(record.hearing_type),
+    status: getString(record.status),
+    court: getString(record.court),
+    judge: getString(record.judge),
+  };
+}
+
+function normalizeDocument(value: unknown): DocumentItem | null {
+  const record = asRecord(value);
+
+  if (!record) {
+    return null;
+  }
+
+  return {
+    ...record,
+    id: getNumber(record.id),
+    name: getString(record.name),
+    file_name: getString(record.file_name),
+    title: getString(record.title),
+    document_type: getString(record.document_type),
+    type: getString(record.type),
+  };
+}
+
+function normalizeTask(value: unknown): TaskItem | null {
+  const record = asRecord(value);
+
+  if (!record) {
+    return null;
+  }
+
+  return {
+    ...record,
+    id: getNumber(record.id),
+    title: getString(record.title),
+    name: getString(record.name),
+    description: getString(record.description),
+    status: getString(record.status),
+    priority: getString(record.priority),
+    deadline: getString(record.deadline),
+    due_date: getString(record.due_date),
+  };
+}
+
+function normalizeTransaction(value: unknown): FinancialTransaction | null {
+  const record = asRecord(value);
+
+  if (!record) {
+    return null;
+  }
+
+  return {
+    ...record,
+    id: getNumber(record.id),
+    description: getString(record.description),
+    title: getString(record.title),
+    transaction_type: getString(record.transaction_type),
+    transaction_type_display: getString(record.transaction_type_display),
+    type: getString(record.type),
+    transaction_date: getString(record.transaction_date),
+    date: getString(record.date),
+    created_at: getString(record.created_at),
+    amount: getNumberOrString(record.amount),
+    value: getNumberOrString(record.value),
+    client: normalizeClientReference(record.client) || null,
+    case: normalizeCaseReference(record.case),
+  };
+}
+
+function normalizeCaseReference(value: unknown): FinancialTransaction["case"] {
+  const record = asRecord(value);
+
+  if (
+    !record ||
+    typeof record.id !== "number" ||
+    typeof record.case_number !== "string"
+  ) {
+    return null;
+  }
+
+  return {
+    id: record.id,
+    case_number: record.case_number,
+    title: getString(record.title) || "",
+  };
+}
+
+function normalizeActivity(value: unknown): ActivityItem | null {
+  const record = asRecord(value);
+
+  if (!record) {
+    return null;
+  }
+
+  return {
+    ...record,
+    id:
+      typeof record.id === "number" || typeof record.id === "string"
+        ? record.id
+        : undefined,
+    title: getString(record.title),
+    action: getString(record.action),
+    event: getString(record.event),
+    description: getString(record.description),
+    created_at: getString(record.created_at),
+    timestamp: getString(record.timestamp),
+    date: getString(record.date),
+  };
+}
+
+/* =========================================================
+   GENERAL HELPERS
+========================================================= */
 
 function getCaseTypeName(caseItem: CaseItem): string {
   if (caseItem.case_type_name) {
@@ -2590,7 +3014,43 @@ function getStatisticNumber(...values: unknown[]): number {
   return 0;
 }
 
-function extractApiError(data: any): string {
+function getOptionalNumber(value: unknown): number | undefined {
+  const number = getNumber(value);
+
+  return number === undefined ? undefined : number;
+}
+
+function getNumber(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim() !== "") {
+    const number = Number(value);
+
+    if (Number.isFinite(number)) {
+      return number;
+    }
+  }
+
+  return undefined;
+}
+
+function getNumberOrString(value: unknown): number | string | undefined {
+  if (typeof value === "number" || typeof value === "string") {
+    return value;
+  }
+
+  return undefined;
+}
+
+function getString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+function extractApiError(value: unknown): string {
+  const data = value as ApiErrorResponse | null;
+
   if (!data) {
     return "";
   }
@@ -2607,16 +3067,22 @@ function extractApiError(data: any): string {
     return data.detail;
   }
 
-  if (data.errors && typeof data.errors === "object") {
+  const errors = asRecord(data.errors);
+
+  if (errors) {
     const messages: string[] = [];
 
-    for (const [field, value] of Object.entries(data.errors)) {
-      if (Array.isArray(value)) {
-        messages.push(`${field}: ${value.join(", ")}`);
-      } else if (typeof value === "string") {
-        messages.push(`${field}: ${value}`);
+    for (const [field, fieldValue] of Object.entries(errors)) {
+      if (Array.isArray(fieldValue)) {
+        messages.push(
+          `${field}: ${fieldValue
+            .filter((item): item is string => typeof item === "string")
+            .join(", ")}`,
+        );
+      } else if (typeof fieldValue === "string") {
+        messages.push(`${field}: ${fieldValue}`);
       } else {
-        messages.push(`${field}: ${JSON.stringify(value)}`);
+        messages.push(`${field}: ${JSON.stringify(fieldValue)}`);
       }
     }
 
@@ -2626,6 +3092,36 @@ function extractApiError(data: any): string {
   }
 
   return "";
+}
+
+function getPersonName(value: unknown): string {
+  if (!value) {
+    return "";
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  const record = asRecord(value);
+
+  if (!record) {
+    return "";
+  }
+
+  const fullName = [record.first_name, record.last_name]
+    .filter((item): item is string => typeof item === "string" && Boolean(item))
+    .join(" ")
+    .trim();
+
+  return (
+    fullName ||
+    getString(record.full_name) ||
+    getString(record.name) ||
+    getString(record.username) ||
+    getString(record.email) ||
+    ""
+  );
 }
 
 function getInitials(name?: string) {
@@ -2640,30 +3136,6 @@ function getInitials(name?: string) {
   }
 
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-}
-
-function getPersonName(value: any) {
-  if (!value) {
-    return "";
-  }
-
-  if (typeof value === "string") {
-    return value;
-  }
-
-  const fullName = [value.first_name, value.last_name]
-    .filter(Boolean)
-    .join(" ")
-    .trim();
-
-  return (
-    fullName ||
-    value.full_name ||
-    value.name ||
-    value.username ||
-    value.email ||
-    ""
-  );
 }
 
 function formatMoney(value: unknown) {
