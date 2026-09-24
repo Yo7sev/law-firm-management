@@ -872,7 +872,7 @@ export default function LawyerTasksPage() {
                 </Link>
 
                 <Link
-                  href="/lawyer#finance"
+                  href="/lawyer/finance"
                   className="block rounded-lg px-3 py-2.5 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
                 >
                   Finance

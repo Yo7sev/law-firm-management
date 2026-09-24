@@ -1,7 +1,6 @@
 from datetime import date
 
 from django.contrib.auth.decorators import login_required
-from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_GET
@@ -209,6 +208,8 @@ def client_profile(request, client_id):
             status=404,
         )
 
+    # Client 360 should show every case belonging to this client
+    # once the current user has permission to access the client.
     cases = (
         Case.objects.filter(client=client)
         .select_related(
@@ -217,15 +218,6 @@ def client_profile(request, client_id):
         )
         .order_by("-created_at")
     )
-
-    if user.role == "lawyer" and not (
-        user.is_superuser
-        or user.role == "super_admin"
-    ):
-        cases = cases.filter(
-            Q(assigned_lawyer=user)
-            | Q(client__created_by=user)
-        )
 
     case_ids = list(
         cases.values_list("id", flat=True)

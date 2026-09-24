@@ -615,105 +615,78 @@ export default function HearingsPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <div className="flex min-h-screen">
-        <aside className="hidden w-64 shrink-0 border-r border-slate-800 bg-slate-950 lg:flex lg:flex-col">
-          <div className="flex h-20 items-center border-b border-slate-800 px-6">
-            <Link href="/lawyer" className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-sm font-bold text-slate-950">
+        <aside className="hidden w-64 shrink-0 border-r border-slate-800 bg-slate-950 lg:block">
+          <div className="flex h-full flex-col">
+            <div className="flex h-20 items-center border-b border-slate-800 px-6">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 font-bold">
                 LF
               </div>
 
-              <div>
-                <p className="text-sm font-semibold text-white">LawFirm</p>
-
-                <p className="text-xs text-slate-500">Management System</p>
-              </div>
-            </Link>
-          </div>
-
-          <nav className="flex-1 space-y-1 p-4">
-            <Link
-              href="/lawyer"
-              className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
-            >
-              <span>⌂</span>
-              Dashboard
-            </Link>
-
-            <Link
-              href="/lawyer/clients"
-              className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
-            >
-              <span>♙</span>
-              Clients
-            </Link>
-
-            <Link
-              href="/lawyer/cases"
-              className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
-            >
-              <span>▣</span>
-              Cases
-            </Link>
-
-            <Link
-              href="/lawyer/hearings"
-              className="flex items-center gap-3 rounded-xl bg-white px-4 py-3 text-sm font-medium text-slate-950"
-            >
-              <span>◷</span>
-              Hearings
-            </Link>
-
-            <Link
-              href="/lawyer#documents"
-              className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
-            >
-              <span>□</span>
-              Documents
-            </Link>
-
-            <Link
-              href="/lawyer#tasks"
-              className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
-            >
-              <span>✓</span>
-              Tasks
-            </Link>
-
-            <Link
-              href="/lawyer#finance"
-              className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
-            >
-              <span>$</span>
-              Finance
-            </Link>
-          </nav>
-
-          <div className="border-t border-slate-800 p-4">
-            <div className="mb-3 flex items-center gap-3 rounded-xl bg-slate-900 p-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-700 text-xs font-semibold text-white">
-                {user
-                  ? getInitials(user.first_name, user.last_name, user.email)
-                  : "U"}
-              </div>
-
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-white">
-                  {user?.first_name || user?.email || "User"}
-                </p>
+              <div className="ml-3 min-w-0">
+                <p className="text-sm font-semibold">LawFirm</p>
 
                 <p className="truncate text-xs text-slate-500">
-                  {user?.role || "Lawyer"}
+                  Management System
                 </p>
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="w-full rounded-xl px-4 py-2.5 text-left text-sm text-slate-400 transition hover:bg-red-500/10 hover:text-red-400"
-            >
-              Sign out
-            </button>
+            <nav className="flex-1 overflow-y-auto px-4 py-6">
+              <p className="mb-3 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-600">
+                Workspace
+              </p>
+
+              <div className="space-y-1">
+                <Link
+                  href="/lawyer"
+                  className="block rounded-lg px-3 py-2.5 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
+                >
+                  Dashboard
+                </Link>
+
+                <Link
+                  href="/lawyer/clients"
+                  className="block rounded-lg px-3 py-2.5 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
+                >
+                  Clients
+                </Link>
+
+                <Link
+                  href="/lawyer/cases"
+                  className="block rounded-lg px-3 py-2.5 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
+                >
+                  Cases
+                </Link>
+
+                <Link
+                  href="/lawyer/hearings"
+                  className="block rounded-lg bg-blue-600/10 px-3 py-2.5 text-sm font-medium text-blue-400"
+                >
+                  Hearings
+                </Link>
+
+                <Link
+                  href="/lawyer/documents"
+                  className="block rounded-lg px-3 py-2.5 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
+                >
+                  Documents
+                </Link>
+
+                <Link
+                  href="/lawyer/tasks"
+                  className="block rounded-lg px-3 py-2.5 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
+                >
+                  Tasks
+                </Link>
+
+                <Link
+                  href="/lawyer/finance"
+                  className="block rounded-lg px-3 py-2.5 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
+                >
+                  Finance
+                </Link>
+              </div>
+            </nav>
           </div>
         </aside>
 

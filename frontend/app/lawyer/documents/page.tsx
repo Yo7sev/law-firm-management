@@ -268,8 +268,9 @@ export default function LawyerDocumentsPage() {
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
   const [showEditModal, setShowEditModal] = useState(false);
-  const [editingDocument, setEditingDocument] =
-    useState<LegalDocument | null>(null);
+  const [editingDocument, setEditingDocument] = useState<LegalDocument | null>(
+    null,
+  );
   const [editTitle, setEditTitle] = useState("");
   const [editClientId, setEditClientId] = useState("");
   const [editCaseId, setEditCaseId] = useState("");
@@ -379,10 +380,7 @@ export default function LawyerDocumentsPage() {
         }),
       ]);
 
-      if (
-        clientsResponse.status === 401 ||
-        casesResponse.status === 401
-      ) {
+      if (clientsResponse.status === 401 || casesResponse.status === 401) {
         router.push("/login");
         return;
       }
@@ -443,8 +441,7 @@ export default function LawyerDocumentsPage() {
     }
 
     return cases.filter(
-      (caseItem) =>
-        String(caseItem.client_id) === String(uploadClientId),
+      (caseItem) => String(caseItem.client_id) === String(uploadClientId),
     );
   }, [cases, uploadClientId]);
 
@@ -454,8 +451,7 @@ export default function LawyerDocumentsPage() {
     }
 
     return cases.filter(
-      (caseItem) =>
-        String(caseItem.client_id) === String(editClientId),
+      (caseItem) => String(caseItem.client_id) === String(editClientId),
     );
   }, [cases, editClientId]);
 
@@ -493,16 +489,12 @@ export default function LawyerDocumentsPage() {
     }
   }
 
-  function handleUploadClientChange(
-    event: ChangeEvent<HTMLSelectElement>,
-  ) {
+  function handleUploadClientChange(event: ChangeEvent<HTMLSelectElement>) {
     setUploadClientId(event.target.value);
     setUploadCaseId("");
   }
 
-  function handleEditClientChange(
-    event: ChangeEvent<HTMLSelectElement>,
-  ) {
+  function handleEditClientChange(event: ChangeEvent<HTMLSelectElement>) {
     setEditClientId(event.target.value);
     setEditCaseId("");
   }
@@ -511,9 +503,7 @@ export default function LawyerDocumentsPage() {
     setEditingDocument(documentItem);
     setEditTitle(documentItem.title);
     setEditClientId(String(documentItem.client_id));
-    setEditCaseId(
-      documentItem.case_id ? String(documentItem.case_id) : "",
-    );
+    setEditCaseId(documentItem.case_id ? String(documentItem.case_id) : "");
     setEditDocumentType(documentItem.document_type);
     setEditDescription(documentItem.description || "");
     setError("");
@@ -535,10 +525,7 @@ export default function LawyerDocumentsPage() {
     setEditDescription("");
   }
 
-  async function uploadToSignedUrl(
-    url: string,
-    file: File,
-  ): Promise<void> {
+  async function uploadToSignedUrl(url: string, file: File): Promise<void> {
     await new Promise<void>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
 
@@ -551,9 +538,7 @@ export default function LawyerDocumentsPage() {
 
       xhr.upload.onprogress = (event) => {
         if (event.lengthComputable) {
-          const percentage = Math.round(
-            (event.loaded / event.total) * 100,
-          );
+          const percentage = Math.round((event.loaded / event.total) * 100);
 
           setUploadProgress(percentage);
         }
@@ -566,19 +551,11 @@ export default function LawyerDocumentsPage() {
           return;
         }
 
-        reject(
-          new Error(
-            `Supabase upload failed with status ${xhr.status}.`,
-          ),
-        );
+        reject(new Error(`Supabase upload failed with status ${xhr.status}.`));
       };
 
       xhr.onerror = () => {
-        reject(
-          new Error(
-            "Network error occurred while uploading the file.",
-          ),
-        );
+        reject(new Error("Network error occurred while uploading the file."));
       };
 
       xhr.onabort = () => {
@@ -622,41 +599,35 @@ export default function LawyerDocumentsPage() {
 
       const csrfToken = await initializeCsrf();
 
-      const uploadUrlResponse = await fetch(
-        "/api/auth/documents/upload-url/",
-        {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": csrfToken,
-          },
-          body: JSON.stringify({
-            client_id: Number(uploadClientId),
-            case_id: uploadCaseId ? Number(uploadCaseId) : null,
-            title: uploadTitle.trim(),
-            document_type: uploadDocumentType,
-            original_filename: selectedFile.name,
-            file_size: selectedFile.size,
-            mime_type:
-              selectedFile.type || "application/octet-stream",
-            description: uploadDescription.trim(),
-          }),
+      const uploadUrlResponse = await fetch("/api/auth/documents/upload-url/", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrfToken,
         },
-      );
+        body: JSON.stringify({
+          client_id: Number(uploadClientId),
+          case_id: uploadCaseId ? Number(uploadCaseId) : null,
+          title: uploadTitle.trim(),
+          document_type: uploadDocumentType,
+          original_filename: selectedFile.name,
+          file_size: selectedFile.size,
+          mime_type: selectedFile.type || "application/octet-stream",
+          description: uploadDescription.trim(),
+        }),
+      });
 
       if (uploadUrlResponse.status === 401) {
         router.push("/login");
         return;
       }
 
-      const uploadUrlData: UploadUrlResponse =
-        await uploadUrlResponse.json();
+      const uploadUrlData: UploadUrlResponse = await uploadUrlResponse.json();
 
       if (!uploadUrlResponse.ok || !uploadUrlData.success) {
         throw new Error(
-          uploadUrlData.message ||
-            (await readApiError(uploadUrlResponse)),
+          uploadUrlData.message || (await readApiError(uploadUrlResponse)),
         );
       }
 
@@ -671,52 +642,41 @@ export default function LawyerDocumentsPage() {
         uploadUrlData.path;
 
       if (!signedUrl) {
-        throw new Error(
-          "The backend did not return a signed upload URL.",
-        );
+        throw new Error("The backend did not return a signed upload URL.");
       }
 
       if (!filePath) {
-        throw new Error(
-          "The backend did not return the document file path.",
-        );
+        throw new Error("The backend did not return the document file path.");
       }
 
       await uploadToSignedUrl(signedUrl, selectedFile);
 
-      const finalizeResponse = await fetch(
-        "/api/auth/documents/finalize/",
-        {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": csrfToken,
-          },
-          body: JSON.stringify({
-            client_id: Number(uploadClientId),
-            case_id: uploadCaseId
-              ? Number(uploadCaseId)
-              : null,
-            title: uploadTitle.trim(),
-            document_type: uploadDocumentType,
-            original_filename: selectedFile.name,
-            file_size: selectedFile.size,
-            mime_type:
-              selectedFile.type || "application/octet-stream",
-            description: uploadDescription.trim(),
-            file_path: filePath,
-          }),
+      const finalizeResponse = await fetch("/api/auth/documents/finalize/", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrfToken,
         },
-      );
+        body: JSON.stringify({
+          client_id: Number(uploadClientId),
+          case_id: uploadCaseId ? Number(uploadCaseId) : null,
+          title: uploadTitle.trim(),
+          document_type: uploadDocumentType,
+          original_filename: selectedFile.name,
+          file_size: selectedFile.size,
+          mime_type: selectedFile.type || "application/octet-stream",
+          description: uploadDescription.trim(),
+          file_path: filePath,
+        }),
+      });
 
       if (finalizeResponse.status === 401) {
         router.push("/login");
         return;
       }
 
-      const finalizeData: FinalizeResponse =
-        await finalizeResponse.json();
+      const finalizeData: FinalizeResponse = await finalizeResponse.json();
 
       if (!finalizeResponse.ok || !finalizeData.success) {
         throw new Error(
@@ -743,9 +703,7 @@ export default function LawyerDocumentsPage() {
     }
   }
 
-  async function handleEditSubmit(
-    event: FormEvent<HTMLFormElement>,
-  ) {
+  async function handleEditSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!editingDocument) {
@@ -782,9 +740,7 @@ export default function LawyerDocumentsPage() {
             title: editTitle.trim(),
             document_type: editDocumentType,
             client_id: Number(editClientId),
-            case_id: editCaseId
-              ? Number(editCaseId)
-              : null,
+            case_id: editCaseId ? Number(editCaseId) : null,
             description: editDescription.trim(),
           }),
         },
@@ -799,8 +755,7 @@ export default function LawyerDocumentsPage() {
 
       if (!response.ok || !data.success) {
         const validationMessage =
-          data.errors &&
-          Object.values(data.errors).length > 0
+          data.errors && Object.values(data.errors).length > 0
             ? Object.values(data.errors)[0]
             : null;
 
@@ -820,9 +775,7 @@ export default function LawyerDocumentsPage() {
 
       setDocuments((currentDocuments) =>
         currentDocuments.map((item) =>
-          item.id === data.document?.id
-            ? data.document
-            : item,
+          item.id === data.document?.id ? data.document : item,
         ),
       );
 
@@ -863,8 +816,7 @@ export default function LawyerDocumentsPage() {
 
       if (!response.ok || !data.success || !data.url) {
         throw new Error(
-          data.message ||
-            "Unable to create the document download URL.",
+          data.message || "Unable to create the document download URL.",
         );
       }
 
@@ -905,16 +857,13 @@ export default function LawyerDocumentsPage() {
 
       const csrfToken = await initializeCsrf();
 
-      const response = await fetch(
-        `/api/auth/documents/${documentItem.id}/`,
-        {
-          method: "DELETE",
-          credentials: "include",
-          headers: {
-            "X-CSRFToken": csrfToken,
-          },
+      const response = await fetch(`/api/auth/documents/${documentItem.id}/`, {
+        method: "DELETE",
+        credentials: "include",
+        headers: {
+          "X-CSRFToken": csrfToken,
         },
-      );
+      });
 
       if (response.status === 401) {
         router.push("/login");
@@ -932,9 +881,7 @@ export default function LawyerDocumentsPage() {
       }
 
       setDocuments((currentDocuments) =>
-        currentDocuments.filter(
-          (item) => item.id !== documentItem.id,
-        ),
+        currentDocuments.filter((item) => item.id !== documentItem.id),
       );
 
       setSuccessMessage("Document deleted successfully.");
@@ -1003,7 +950,7 @@ export default function LawyerDocumentsPage() {
                 </Link>
 
                 <Link
-                  href="/hearings"
+                  href="/lawyer/hearings"
                   className="block rounded-lg px-3 py-2.5 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
                 >
                   Hearings
@@ -1024,7 +971,7 @@ export default function LawyerDocumentsPage() {
                 </Link>
 
                 <Link
-                  href="/lawyer#finance"
+                  href="/lawyer/finance"
                   className="block rounded-lg px-3 py-2.5 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
                 >
                   Finance
@@ -1064,9 +1011,7 @@ export default function LawyerDocumentsPage() {
               }}
               className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-500 sm:px-4"
             >
-              <span className="hidden sm:inline">
-                Upload Document
-              </span>
+              <span className="hidden sm:inline">Upload Document</span>
 
               <span className="sm:hidden">Upload</span>
             </button>
@@ -1121,8 +1066,8 @@ export default function LawyerDocumentsPage() {
               </h2>
 
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-                Store, organize, access, and manage legal
-                documents associated with your clients and cases.
+                Store, organize, access, and manage legal documents associated
+                with your clients and cases.
               </p>
             </div>
 
@@ -1140,9 +1085,7 @@ export default function LawyerDocumentsPage() {
                     id="document-search"
                     type="search"
                     value={search}
-                    onChange={(event) =>
-                      setSearch(event.target.value)
-                    }
+                    onChange={(event) => setSearch(event.target.value)}
                     placeholder="Title, filename, client..."
                     className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-slate-700 focus:border-blue-700"
                   />
@@ -1159,18 +1102,13 @@ export default function LawyerDocumentsPage() {
                   <select
                     id="client-filter"
                     value={clientFilter}
-                    onChange={(event) =>
-                      setClientFilter(event.target.value)
-                    }
+                    onChange={(event) => setClientFilter(event.target.value)}
                     className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none transition focus:border-blue-700"
                   >
                     <option value="">All clients</option>
 
                     {clients.map((client) => (
-                      <option
-                        key={client.id}
-                        value={client.id}
-                      >
+                      <option key={client.id} value={client.id}>
                         {client.full_name}
                       </option>
                     ))}
@@ -1188,20 +1126,14 @@ export default function LawyerDocumentsPage() {
                   <select
                     id="case-filter"
                     value={caseFilter}
-                    onChange={(event) =>
-                      setCaseFilter(event.target.value)
-                    }
+                    onChange={(event) => setCaseFilter(event.target.value)}
                     className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none transition focus:border-blue-700"
                   >
                     <option value="">All cases</option>
 
                     {cases.map((caseItem) => (
-                      <option
-                        key={caseItem.id}
-                        value={caseItem.id}
-                      >
-                        {caseItem.case_number} —{" "}
-                        {caseItem.title}
+                      <option key={caseItem.id} value={caseItem.id}>
+                        {caseItem.case_number} — {caseItem.title}
                       </option>
                     ))}
                   </select>
@@ -1218,18 +1150,13 @@ export default function LawyerDocumentsPage() {
                   <select
                     id="type-filter"
                     value={typeFilter}
-                    onChange={(event) =>
-                      setTypeFilter(event.target.value)
-                    }
+                    onChange={(event) => setTypeFilter(event.target.value)}
                     className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none transition focus:border-blue-700"
                   >
                     <option value="">All types</option>
 
                     {documentTypes.map((type) => (
-                      <option
-                        key={type.value}
-                        value={type.value}
-                      >
+                      <option key={type.value} value={type.value}>
                         {type.label}
                       </option>
                     ))}
@@ -1246,10 +1173,7 @@ export default function LawyerDocumentsPage() {
                       } found`}
                 </p>
 
-                {(search ||
-                  clientFilter ||
-                  caseFilter ||
-                  typeFilter) && (
+                {(search || clientFilter || caseFilter || typeFilter) && (
                   <button
                     type="button"
                     onClick={clearFilters}
@@ -1292,20 +1216,12 @@ export default function LawyerDocumentsPage() {
                   </h3>
 
                   <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">
-                    {search ||
-                    clientFilter ||
-                    caseFilter ||
-                    typeFilter
+                    {search || clientFilter || caseFilter || typeFilter
                       ? "Try changing your search or filters."
                       : "Upload your first legal document to start building your document library."}
                   </p>
 
-                  {!(
-                    search ||
-                    clientFilter ||
-                    caseFilter ||
-                    typeFilter
-                  ) && (
+                  {!(search || clientFilter || caseFilter || typeFilter) && (
                     <button
                       type="button"
                       onClick={() => {
@@ -1328,9 +1244,7 @@ export default function LawyerDocumentsPage() {
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-800 bg-slate-950 text-[11px] font-bold text-blue-400">
-                          {getFileExtension(
-                            documentItem.original_filename,
-                          )}
+                          {getFileExtension(documentItem.original_filename)}
                         </div>
 
                         <span
@@ -1339,9 +1253,7 @@ export default function LawyerDocumentsPage() {
                           )}`}
                         >
                           {documentItem.document_type_display ||
-                            formatDocumentType(
-                              documentItem.document_type,
-                            )}
+                            formatDocumentType(documentItem.document_type)}
                         </span>
                       </div>
 
@@ -1357,27 +1269,21 @@ export default function LawyerDocumentsPage() {
                           title={documentItem.original_filename}
                           className="mt-1 truncate text-xs text-slate-600"
                         >
-                          {documentItem.original_filename ||
-                            "No filename"}
+                          {documentItem.original_filename || "No filename"}
                         </p>
                       </div>
 
                       <div className="mt-5 space-y-2.5 text-xs">
                         <div className="flex items-start justify-between gap-4">
-                          <span className="text-slate-600">
-                            Client
-                          </span>
+                          <span className="text-slate-600">Client</span>
 
                           <span className="min-w-0 truncate text-right text-slate-400">
-                            {documentItem.client?.full_name ||
-                              "Not specified"}
+                            {documentItem.client?.full_name || "Not specified"}
                           </span>
                         </div>
 
                         <div className="flex items-start justify-between gap-4">
-                          <span className="text-slate-600">
-                            Case
-                          </span>
+                          <span className="text-slate-600">Case</span>
 
                           <span className="min-w-0 truncate text-right text-slate-400">
                             {documentItem.case
@@ -1387,26 +1293,18 @@ export default function LawyerDocumentsPage() {
                         </div>
 
                         <div className="flex items-start justify-between gap-4">
-                          <span className="text-slate-600">
-                            Size
-                          </span>
+                          <span className="text-slate-600">Size</span>
 
                           <span className="text-right text-slate-400">
-                            {formatFileSize(
-                              documentItem.file_size,
-                            )}
+                            {formatFileSize(documentItem.file_size)}
                           </span>
                         </div>
 
                         <div className="flex items-start justify-between gap-4">
-                          <span className="text-slate-600">
-                            Uploaded
-                          </span>
+                          <span className="text-slate-600">Uploaded</span>
 
                           <span className="text-right text-slate-400">
-                            {formatDate(
-                              documentItem.created_at,
-                            )}
+                            {formatDate(documentItem.created_at)}
                           </span>
                         </div>
                       </div>
@@ -1420,12 +1318,9 @@ export default function LawyerDocumentsPage() {
                       <div className="mt-5 grid grid-cols-2 gap-2 border-t border-slate-800 pt-4">
                         <button
                           type="button"
-                          onClick={() =>
-                            handleDownload(documentItem)
-                          }
+                          onClick={() => handleDownload(documentItem)}
                           disabled={
-                            downloadingId ===
-                              documentItem.id ||
+                            downloadingId === documentItem.id ||
                             deletingId === documentItem.id
                           }
                           className="rounded-lg border border-slate-800 px-3 py-2.5 text-xs font-medium text-slate-300 transition hover:bg-slate-900 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
@@ -1437,12 +1332,8 @@ export default function LawyerDocumentsPage() {
 
                         <button
                           type="button"
-                          onClick={() =>
-                            openEditModal(documentItem)
-                          }
-                          disabled={
-                            deletingId === documentItem.id
-                          }
+                          onClick={() => openEditModal(documentItem)}
+                          disabled={deletingId === documentItem.id}
                           className="rounded-lg border border-blue-900/50 px-3 py-2.5 text-xs font-medium text-blue-400 transition hover:bg-blue-950/30 hover:text-blue-300 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           Edit
@@ -1450,12 +1341,8 @@ export default function LawyerDocumentsPage() {
 
                         <button
                           type="button"
-                          onClick={() =>
-                            handleDelete(documentItem)
-                          }
-                          disabled={
-                            deletingId === documentItem.id
-                          }
+                          onClick={() => handleDelete(documentItem)}
+                          disabled={deletingId === documentItem.id}
                           className="col-span-2 rounded-lg border border-red-900/40 px-3 py-2.5 text-xs font-medium text-red-400 transition hover:bg-red-950/30 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           {deletingId === documentItem.id
@@ -1477,10 +1364,9 @@ export default function LawyerDocumentsPage() {
                   </p>
 
                   <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-                    Documents are stored in the private Supabase
-                    Storage bucket. Django controls authorization
-                    and generates temporary signed URLs for
-                    document access.
+                    Documents are stored in the private Supabase Storage bucket.
+                    Django controls authorization and generates temporary signed
+                    URLs for document access.
                   </p>
                 </div>
 
@@ -1518,10 +1404,7 @@ export default function LawyerDocumentsPage() {
               </button>
             </div>
 
-            <form
-              onSubmit={handleUpload}
-              className="space-y-5 p-5"
-            >
+            <form onSubmit={handleUpload} className="space-y-5 p-5">
               <div>
                 <label
                   htmlFor="document-file"
@@ -1583,9 +1466,7 @@ export default function LawyerDocumentsPage() {
                     id="upload-title"
                     type="text"
                     value={uploadTitle}
-                    onChange={(event) =>
-                      setUploadTitle(event.target.value)
-                    }
+                    onChange={(event) => setUploadTitle(event.target.value)}
                     placeholder="e.g. Employment Contract"
                     disabled={uploading}
                     className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-700 focus:border-blue-700"
@@ -1604,18 +1485,13 @@ export default function LawyerDocumentsPage() {
                     id="upload-type"
                     value={uploadDocumentType}
                     onChange={(event) =>
-                      setUploadDocumentType(
-                        event.target.value,
-                      )
+                      setUploadDocumentType(event.target.value)
                     }
                     disabled={uploading}
                     className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none focus:border-blue-700"
                   >
                     {documentTypes.map((type) => (
-                      <option
-                        key={type.value}
-                        value={type.value}
-                      >
+                      <option key={type.value} value={type.value}>
                         {type.label}
                       </option>
                     ))}
@@ -1634,18 +1510,13 @@ export default function LawyerDocumentsPage() {
                     id="upload-client"
                     value={uploadClientId}
                     onChange={handleUploadClientChange}
-                    disabled={
-                      uploading || loadingOptions
-                    }
+                    disabled={uploading || loadingOptions}
                     className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none focus:border-blue-700"
                   >
                     <option value="">Select client</option>
 
                     {clients.map((client) => (
-                      <option
-                        key={client.id}
-                        value={client.id}
-                      >
+                      <option key={client.id} value={client.id}>
                         {client.full_name}
                       </option>
                     ))}
@@ -1663,27 +1534,15 @@ export default function LawyerDocumentsPage() {
                   <select
                     id="upload-case"
                     value={uploadCaseId}
-                    onChange={(event) =>
-                      setUploadCaseId(event.target.value)
-                    }
-                    disabled={
-                      uploading ||
-                      !uploadClientId ||
-                      loadingOptions
-                    }
+                    onChange={(event) => setUploadCaseId(event.target.value)}
+                    disabled={uploading || !uploadClientId || loadingOptions}
                     className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none focus:border-blue-700 disabled:opacity-50"
                   >
-                    <option value="">
-                      No case / General client document
-                    </option>
+                    <option value="">No case / General client document</option>
 
                     {availableUploadCases.map((caseItem) => (
-                      <option
-                        key={caseItem.id}
-                        value={caseItem.id}
-                      >
-                        {caseItem.case_number} —{" "}
-                        {caseItem.title}
+                      <option key={caseItem.id} value={caseItem.id}>
+                        {caseItem.case_number} — {caseItem.title}
                       </option>
                     ))}
                   </select>
@@ -1701,9 +1560,7 @@ export default function LawyerDocumentsPage() {
                 <textarea
                   id="upload-description"
                   value={uploadDescription}
-                  onChange={(event) =>
-                    setUploadDescription(event.target.value)
-                  }
+                  onChange={(event) => setUploadDescription(event.target.value)}
                   placeholder="Optional description..."
                   rows={4}
                   disabled={uploading}
@@ -1714,13 +1571,9 @@ export default function LawyerDocumentsPage() {
               {uploading && (
                 <div className="rounded-xl border border-blue-900/50 bg-blue-950/20 p-4">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-blue-300">
-                      Uploading document...
-                    </span>
+                    <span className="text-blue-300">Uploading document...</span>
 
-                    <span className="text-blue-400">
-                      {uploadProgress}%
-                    </span>
+                    <span className="text-blue-400">{uploadProgress}%</span>
                   </div>
 
                   <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-800">
@@ -1769,8 +1622,7 @@ export default function LawyerDocumentsPage() {
                 </h2>
 
                 <p className="mt-1 truncate text-xs text-slate-600">
-                  Update the document metadata without changing
-                  the stored file.
+                  Update the document metadata without changing the stored file.
                 </p>
               </div>
 
@@ -1785,10 +1637,7 @@ export default function LawyerDocumentsPage() {
               </button>
             </div>
 
-            <form
-              onSubmit={handleEditSubmit}
-              className="space-y-5 p-5"
-            >
+            <form onSubmit={handleEditSubmit} className="space-y-5 p-5">
               <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
                 <p className="text-xs font-medium text-slate-500">
                   Stored file
@@ -1798,8 +1647,7 @@ export default function LawyerDocumentsPage() {
                   title={editingDocument.original_filename}
                   className="mt-1 truncate text-sm text-slate-300"
                 >
-                  {editingDocument.original_filename ||
-                    "No filename"}
+                  {editingDocument.original_filename || "No filename"}
                 </p>
 
                 <p className="mt-1 text-xs text-slate-600">
@@ -1821,9 +1669,7 @@ export default function LawyerDocumentsPage() {
                     id="edit-title"
                     type="text"
                     value={editTitle}
-                    onChange={(event) =>
-                      setEditTitle(event.target.value)
-                    }
+                    onChange={(event) => setEditTitle(event.target.value)}
                     placeholder="Document title"
                     disabled={savingEdit}
                     className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-700 focus:border-blue-700"
@@ -1842,18 +1688,13 @@ export default function LawyerDocumentsPage() {
                     id="edit-type"
                     value={editDocumentType}
                     onChange={(event) =>
-                      setEditDocumentType(
-                        event.target.value,
-                      )
+                      setEditDocumentType(event.target.value)
                     }
                     disabled={savingEdit}
                     className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none focus:border-blue-700"
                   >
                     {documentTypes.map((type) => (
-                      <option
-                        key={type.value}
-                        value={type.value}
-                      >
+                      <option key={type.value} value={type.value}>
                         {type.label}
                       </option>
                     ))}
@@ -1872,18 +1713,13 @@ export default function LawyerDocumentsPage() {
                     id="edit-client"
                     value={editClientId}
                     onChange={handleEditClientChange}
-                    disabled={
-                      savingEdit || loadingOptions
-                    }
+                    disabled={savingEdit || loadingOptions}
                     className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none focus:border-blue-700"
                   >
                     <option value="">Select client</option>
 
                     {clients.map((client) => (
-                      <option
-                        key={client.id}
-                        value={client.id}
-                      >
+                      <option key={client.id} value={client.id}>
                         {client.full_name}
                       </option>
                     ))}
@@ -1901,27 +1737,15 @@ export default function LawyerDocumentsPage() {
                   <select
                     id="edit-case"
                     value={editCaseId}
-                    onChange={(event) =>
-                      setEditCaseId(event.target.value)
-                    }
-                    disabled={
-                      savingEdit ||
-                      !editClientId ||
-                      loadingOptions
-                    }
+                    onChange={(event) => setEditCaseId(event.target.value)}
+                    disabled={savingEdit || !editClientId || loadingOptions}
                     className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none focus:border-blue-700 disabled:opacity-50"
                   >
-                    <option value="">
-                      No case / General client document
-                    </option>
+                    <option value="">No case / General client document</option>
 
                     {availableEditCases.map((caseItem) => (
-                      <option
-                        key={caseItem.id}
-                        value={caseItem.id}
-                      >
-                        {caseItem.case_number} —{" "}
-                        {caseItem.title}
+                      <option key={caseItem.id} value={caseItem.id}>
+                        {caseItem.case_number} — {caseItem.title}
                       </option>
                     ))}
                   </select>
@@ -1939,9 +1763,7 @@ export default function LawyerDocumentsPage() {
                 <textarea
                   id="edit-description"
                   value={editDescription}
-                  onChange={(event) =>
-                    setEditDescription(event.target.value)
-                  }
+                  onChange={(event) => setEditDescription(event.target.value)}
                   placeholder="Optional description..."
                   rows={5}
                   disabled={savingEdit}
@@ -1951,8 +1773,8 @@ export default function LawyerDocumentsPage() {
 
               <div className="rounded-xl border border-blue-900/40 bg-blue-950/20 p-4">
                 <p className="text-xs leading-5 text-blue-300">
-                  Editing metadata does not replace or re-upload
-                  the physical file in Supabase Storage.
+                  Editing metadata does not replace or re-upload the physical
+                  file in Supabase Storage.
                 </p>
               </div>
 
@@ -1971,9 +1793,7 @@ export default function LawyerDocumentsPage() {
                   disabled={savingEdit}
                   className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {savingEdit
-                    ? "Saving changes..."
-                    : "Save Changes"}
+                  {savingEdit ? "Saving changes..." : "Save Changes"}
                 </button>
               </div>
             </form>

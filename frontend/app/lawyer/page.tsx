@@ -105,7 +105,7 @@ const modules = [
   {
     title: "Finance",
     description: "Review payments, expenses, invoices, and financial activity.",
-    href: "#finance",
+    href: "/lawyer/finance",
     icon: "$",
   },
 ];
@@ -416,7 +416,7 @@ export default function LawyerDashboard() {
                 </Link>
 
                 <Link
-                  href="/hearings"
+                  href="/lawyer/hearings"
                   className="block rounded-lg px-3 py-2.5 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
                 >
                   Hearings
@@ -437,7 +437,7 @@ export default function LawyerDashboard() {
                 </Link>
 
                 <Link
-                  href="#finance"
+                  href="/lawyer/finance"
                   className="block rounded-lg px-3 py-2.5 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
                 >
                   Finance
@@ -817,7 +817,7 @@ export default function LawyerDashboard() {
                   </div>
 
                   <Link
-                    href="/hearings"
+                    href="/lawyer/hearings"
                     className="text-xs text-blue-400 transition hover:text-blue-300"
                   >
                     View all →
