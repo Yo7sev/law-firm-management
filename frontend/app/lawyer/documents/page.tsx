@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import NotificationBell from "@/components/lawyer/NotificationBell";
 import {
   ChangeEvent,
   FormEvent,
@@ -1002,19 +1003,23 @@ export default function LawyerDocumentsPage() {
               </h1>
             </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                setError("");
-                setSuccessMessage("");
-                setShowUploadModal(true);
-              }}
-              className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-500 sm:px-4"
-            >
-              <span className="hidden sm:inline">Upload Document</span>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <NotificationBell />
 
-              <span className="sm:hidden">Upload</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setError("");
+                  setSuccessMessage("");
+                  setShowUploadModal(true);
+                }}
+                className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-500 sm:px-4"
+              >
+                <span className="hidden sm:inline">Upload Document</span>
+
+                <span className="sm:hidden">Upload</span>
+              </button>
+            </div>
           </header>
 
           <div className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">

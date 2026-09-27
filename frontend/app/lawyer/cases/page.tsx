@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import NotificationBell from "@/components/lawyer/NotificationBell";
 
 type User = {
   id: number;
@@ -81,6 +82,8 @@ type CaseForm = {
   description: string;
   opening_date: string;
   closing_date: string;
+  expense_amount: string;
+  expense_description: string;
 };
 
 const emptyForm: CaseForm = {
@@ -98,6 +101,8 @@ const emptyForm: CaseForm = {
   description: "",
   opening_date: new Date().toISOString().split("T")[0],
   closing_date: "",
+  expense_amount: "",
+  expense_description: "",
 };
 
 const statusOptions = [
@@ -114,17 +119,6 @@ const priorityOptions = [
   { value: "high", label: "High" },
   { value: "urgent", label: "Urgent" },
 ];
-
-function getInitials(firstName: string, lastName: string, email: string) {
-  const first = firstName?.trim()?.charAt(0) || "";
-  const last = lastName?.trim()?.charAt(0) || "";
-
-  if (first || last) {
-    return `${first}${last}`.toUpperCase();
-  }
-
-  return email.charAt(0).toUpperCase();
-}
 
 function formatDate(date: string | null) {
   if (!date) {
@@ -383,6 +377,8 @@ export default function CasesPage() {
     setForm({
       ...emptyForm,
       opening_date: new Date().toISOString().split("T")[0],
+      expense_amount: "",
+      expense_description: "",
     });
 
     setFormErrors({});
@@ -412,6 +408,11 @@ export default function CasesPage() {
       description: legalCase.description,
       opening_date: legalCase.opening_date,
       closing_date: legalCase.closing_date || "",
+
+      // Expenses are intentionally empty while editing.
+      // A new expense is only created during new case creation.
+      expense_amount: "",
+      expense_description: "",
     });
 
     setFormErrors({});
@@ -462,6 +463,25 @@ export default function CasesPage() {
     setSuccess("");
     setFormErrors({});
 
+    const isEditing = Boolean(editingCase);
+    const expenseAmount = form.expense_amount.trim();
+
+    /*
+     * Expense validation only applies when creating a case.
+     * Editing an existing case never creates a new expense.
+     */
+    if (!isEditing && expenseAmount) {
+      const parsedExpenseAmount = Number(expenseAmount);
+
+      if (!Number.isFinite(parsedExpenseAmount) || parsedExpenseAmount <= 0) {
+        setFormErrors({
+          expense_amount: "Expense amount must be greater than zero.",
+        });
+        setSaving(false);
+        return;
+      }
+    }
+
     const payload = {
       case_number: form.case_number.trim(),
       title: form.title.trim(),
@@ -506,15 +526,92 @@ export default function CasesPage() {
         );
       }
 
+      /*
+       * Editing an existing case:
+       * Save only the case. Never create an expense.
+       */
+      if (isEditing) {
+        setShowFormModal(false);
+        setEditingCase(null);
+        setForm(emptyForm);
+
+        setSuccess("Case updated successfully.");
+
+        await loadCases();
+        return;
+      }
+
+      /*
+       * New case:
+       * If the user entered an expense, create the finance transaction
+       * after the case has successfully been created.
+       */
+      if (expenseAmount) {
+        const createdCaseId = data.case?.id;
+
+        if (!createdCaseId) {
+          setShowFormModal(false);
+          setEditingCase(null);
+          setForm(emptyForm);
+
+          await loadCases();
+
+          throw new Error(
+            "Case was created, but its ID was not returned. The expense could not be recorded.",
+          );
+        }
+
+        const expenseResponse = await fetch("/api/auth/finance/", {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            client_id: Number(form.client_id),
+            case_id: createdCaseId,
+            transaction_type: "expense",
+            amount: expenseAmount,
+            transaction_date: form.opening_date,
+            description: form.expense_description.trim(),
+            reference: "",
+          }),
+        });
+
+        const expenseData = await expenseResponse.json();
+
+        if (!expenseResponse.ok) {
+          setShowFormModal(false);
+          setEditingCase(null);
+          setForm(emptyForm);
+
+          await loadCases();
+
+          throw new Error(
+            `Case was created successfully, but the expense could not be recorded${
+              expenseData.message ? `: ${expenseData.message}` : "."
+            }`,
+          );
+        }
+
+        setShowFormModal(false);
+        setEditingCase(null);
+        setForm(emptyForm);
+
+        setSuccess("Case and expense created successfully.");
+
+        await loadCases();
+        return;
+      }
+
+      /*
+       * New case without an expense.
+       */
       setShowFormModal(false);
       setEditingCase(null);
       setForm(emptyForm);
 
-      setSuccess(
-        editingCase
-          ? "Case updated successfully."
-          : "Case created successfully.",
-      );
+      setSuccess("Case created successfully.");
 
       await loadCases();
     } catch (requestError) {
@@ -562,17 +659,6 @@ export default function CasesPage() {
       );
     } finally {
       setDeleting(false);
-    }
-  }
-
-  async function handleLogout() {
-    try {
-      await fetch("/api/auth/logout/", {
-        method: "POST",
-        credentials: "include",
-      });
-    } finally {
-      router.push("/login");
     }
   }
 
@@ -674,17 +760,21 @@ export default function CasesPage() {
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={openCreateModal}
-                className="flex shrink-0 items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-200"
-              >
-                <span className="text-lg leading-none">+</span>
+              <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+                <NotificationBell />
 
-                <span className="hidden sm:inline">New Case</span>
+                <button
+                  type="button"
+                  onClick={openCreateModal}
+                  className="flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-200"
+                >
+                  <span className="text-lg leading-none">+</span>
 
-                <span className="sm:hidden">New</span>
-              </button>
+                  <span className="hidden sm:inline">New Case</span>
+
+                  <span className="sm:hidden">New</span>
+                </button>
+              </div>
             </div>
           </header>
 
@@ -1562,6 +1652,82 @@ export default function CasesPage() {
                       className="mt-4 w-full resize-y rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-slate-500"
                     />
                   </div>
+
+                  {!editingCase && (
+                    <div className="border-t border-slate-800 pt-6">
+                      <div>
+                        <h3 className="text-sm font-semibold text-white">
+                          Expense
+                        </h3>
+
+                        <p className="mt-1 text-xs text-slate-500">
+                          Optionally record one expense for this case.
+                        </p>
+                      </div>
+
+                      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                        <div>
+                          <label
+                            htmlFor="expense_amount"
+                            className="mb-2 block text-xs font-medium text-slate-400"
+                          >
+                            Amount
+                          </label>
+
+                          <input
+                            id="expense_amount"
+                            type="number"
+                            min="0.01"
+                            step="0.01"
+                            value={form.expense_amount}
+                            onChange={(event) =>
+                              updateForm("expense_amount", event.target.value)
+                            }
+                            placeholder="e.g. 50.00"
+                            className={`w-full rounded-xl border bg-slate-900 px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-slate-500 ${
+                              formErrors.expense_amount
+                                ? "border-red-500/60"
+                                : "border-slate-700"
+                            }`}
+                          />
+
+                          {formErrors.expense_amount && (
+                            <p className="mt-1.5 text-xs text-red-400">
+                              {formErrors.expense_amount}
+                            </p>
+                          )}
+                        </div>
+
+                        <div>
+                          <label
+                            htmlFor="expense_description"
+                            className="mb-2 block text-xs font-medium text-slate-400"
+                          >
+                            Description
+                          </label>
+
+                          <input
+                            id="expense_description"
+                            type="text"
+                            value={form.expense_description}
+                            onChange={(event) =>
+                              updateForm(
+                                "expense_description",
+                                event.target.value,
+                              )
+                            }
+                            placeholder="e.g. Court filing fee"
+                            className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-slate-500"
+                          />
+                        </div>
+                      </div>
+
+                      <p className="mt-3 text-xs text-slate-600">
+                        This expense will be linked to this case and recorded in
+                        Finance under the opening date month.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 

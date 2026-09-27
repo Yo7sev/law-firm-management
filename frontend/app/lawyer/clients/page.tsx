@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import NotificationBell from "@/components/lawyer/NotificationBell";
 import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
@@ -90,10 +91,6 @@ const clientTypes = [
   {
     value: "company",
     label: "Company",
-  },
-  {
-    value: "organization",
-    label: "Organization",
   },
 ];
 
@@ -732,13 +729,17 @@ export default function ClientsPage() {
               </h1>
             </div>
 
-            <button
-              type="button"
-              onClick={openCreateModal}
-              className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-500"
-            >
-              + Add Client
-            </button>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <NotificationBell />
+
+              <button
+                type="button"
+                onClick={openCreateModal}
+                className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-500"
+              >
+                + Add Client
+              </button>
+            </div>
           </header>
 
           <div className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">

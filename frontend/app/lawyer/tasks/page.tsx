@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import NotificationBell from "@/components/lawyer/NotificationBell";
 
 type Case = {
   id: number;
@@ -903,15 +904,19 @@ export default function LawyerTasksPage() {
               </h1>
             </div>
 
-            <button
-              type="button"
-              onClick={openCreateModal}
-              className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-500 sm:px-4"
-            >
-              <span className="hidden sm:inline">Create Task</span>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <NotificationBell />
 
-              <span className="sm:hidden">Add Task</span>
-            </button>
+              <button
+                type="button"
+                onClick={openCreateModal}
+                className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-500 sm:px-4"
+              >
+                <span className="hidden sm:inline">Create Task</span>
+
+                <span className="sm:hidden">Add Task</span>
+              </button>
+            </div>
           </header>
 
           <div className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">

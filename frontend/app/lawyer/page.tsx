@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type User = {
   id: number;
@@ -71,44 +71,27 @@ type DashboardResponse = {
   message?: string;
 };
 
-const modules = [
-  {
-    title: "Clients",
-    description: "Manage clients, contact information, and relationships.",
-    href: "/lawyer/clients",
-    icon: "C",
-  },
-  {
-    title: "Cases",
-    description: "Review active cases, case details, and legal matters.",
-    href: "/lawyer/cases",
-    icon: "⚖",
-  },
-  {
-    title: "Hearings",
-    description: "Track upcoming hearings, dates, courts, and schedules.",
-    href: "/hearings",
-    icon: "H",
-  },
-  {
-    title: "Documents",
-    description: "Access and organize case-related legal documents.",
-    href: "/lawyer/documents",
-    icon: "D",
-  },
-  {
-    title: "Tasks",
-    description: "Manage assignments, deadlines, and pending work.",
-    href: "/lawyer/tasks",
-    icon: "T",
-  },
-  {
-    title: "Finance",
-    description: "Review payments, expenses, invoices, and financial activity.",
-    href: "/lawyer/finance",
-    icon: "$",
-  },
-];
+type Notification = {
+  id: number;
+  notification_type: string;
+  notification_type_label?: string;
+  title: string;
+  message: string;
+  is_read: boolean;
+  created_at: string;
+  read_at: string | null;
+  related_case_id: number | null;
+  related_hearing_id: number | null;
+  related_task_id: number | null;
+  related_document_id: number | null;
+};
+
+type NotificationsResponse = {
+  success: boolean;
+  notifications: Notification[];
+  unread_count: number;
+  message?: string;
+};
 
 function formatRole(role: string) {
   return role
@@ -149,6 +132,25 @@ function formatDateTime(dateString: string) {
     year: "numeric",
     month: "short",
     day: "numeric",
+  }).format(date);
+}
+
+function formatNotificationDate(dateString: string) {
+  if (!dateString) {
+    return "";
+  }
+
+  const date = new Date(dateString);
+
+  if (Number.isNaN(date.getTime())) {
+    return dateString;
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
   }).format(date);
 }
 
@@ -214,8 +216,53 @@ function getStatusClass(status: string) {
   }
 }
 
+function getNotificationIcon(type: string) {
+  switch (type) {
+    case "hearing":
+      return "H";
+
+    case "task":
+      return "T";
+
+    case "payment":
+      return "$";
+
+    case "document":
+      return "D";
+
+    case "case":
+      return "C";
+
+    default:
+      return "!";
+  }
+}
+
+function getNotificationIconClass(type: string) {
+  switch (type) {
+    case "hearing":
+      return "border-blue-900/60 bg-blue-950/30 text-blue-300";
+
+    case "task":
+      return "border-yellow-900/60 bg-yellow-950/30 text-yellow-300";
+
+    case "payment":
+      return "border-emerald-900/60 bg-emerald-950/30 text-emerald-300";
+
+    case "document":
+      return "border-purple-900/60 bg-purple-950/30 text-purple-300";
+
+    case "case":
+      return "border-orange-900/60 bg-orange-950/30 text-orange-300";
+
+    default:
+      return "border-slate-700 bg-slate-900 text-slate-300";
+  }
+}
+
 export default function LawyerDashboard() {
   const router = useRouter();
+  const notificationRef = useRef<HTMLDivElement | null>(null);
 
   const [user, setUser] = useState<User | null>(null);
 
@@ -226,6 +273,54 @@ export default function LawyerDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationsError, setNotificationsError] = useState("");
+
+  const loadNotifications = useCallback(async () => {
+    try {
+      setNotificationsLoading(true);
+      setNotificationsError("");
+
+      const response = await fetch("/api/auth/notifications/", {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      if (response.status === 401) {
+        router.push("/login");
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          `Unable to load notifications. Status: ${response.status}`,
+        );
+      }
+
+      const data: NotificationsResponse = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.message || "Unable to load notifications.");
+      }
+
+      setNotifications(data.notifications || []);
+      setUnreadNotifications(data.unread_count || 0);
+    } catch (notificationError) {
+      const message =
+        notificationError instanceof Error
+          ? notificationError.message
+          : "Unable to load notifications.";
+
+      setNotificationsError(message);
+    } finally {
+      setNotificationsLoading(false);
+    }
+  }, [router]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -233,16 +328,6 @@ export default function LawyerDashboard() {
       try {
         setLoading(true);
         setError("");
-
-        /*
-         * ---------------------------------------------------------
-         * STEP 1: Load authenticated user first.
-         *
-         * IMPORTANT:
-         * Use the trailing slash because Django API endpoints use trailing slashes.
-         * because that is the working Next.js endpoint.
-         * ---------------------------------------------------------
-         */
 
         const meResponse = await fetch("/api/auth/me/", {
           method: "GET",
@@ -272,19 +357,8 @@ export default function LawyerDashboard() {
           return;
         }
 
-        /*
-         * Set the authenticated user immediately.
-         *
-         * This prevents the dashboard request from causing the
-         * "Unable to load the current user" message.
-         */
         setUser(meData.user);
-
-        /*
-         * ---------------------------------------------------------
-         * STEP 2: Load dashboard data separately.
-         * ---------------------------------------------------------
-         */
+        loadNotifications();
 
         const dashboardResponse = await fetch("/api/auth/dashboard/", {
           method: "GET",
@@ -341,7 +415,137 @@ export default function LawyerDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [loadNotifications, router]);
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      loadNotifications();
+    }, 30000);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [loadNotifications, user]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        notificationRef.current &&
+        !notificationRef.current.contains(event.target as Node)
+      ) {
+        setNotificationsOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  async function markNotificationAsRead(notificationId: number) {
+    try {
+      const response = await fetch(
+        `/api/auth/notifications/${notificationId}/read/`,
+        {
+          method: "POST",
+          credentials: "include",
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("Unable to mark notification as read.");
+      }
+
+      setNotifications((currentNotifications) =>
+        currentNotifications.map((notification) =>
+          notification.id === notificationId
+            ? {
+                ...notification,
+                is_read: true,
+                read_at: new Date().toISOString(),
+              }
+            : notification,
+        ),
+      );
+
+      setUnreadNotifications((currentCount) => Math.max(0, currentCount - 1));
+    } catch (notificationError) {
+      const message =
+        notificationError instanceof Error
+          ? notificationError.message
+          : "Unable to mark notification as read.";
+
+      setNotificationsError(message);
+    }
+  }
+
+  async function markAllNotificationsAsRead() {
+    if (unreadNotifications === 0) {
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/auth/notifications/read-all/", {
+        method: "POST",
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error("Unable to mark all notifications as read.");
+      }
+
+      setNotifications((currentNotifications) =>
+        currentNotifications.map((notification) => ({
+          ...notification,
+          is_read: true,
+          read_at: notification.read_at || new Date().toISOString(),
+        })),
+      );
+
+      setUnreadNotifications(0);
+    } catch (notificationError) {
+      const message =
+        notificationError instanceof Error
+          ? notificationError.message
+          : "Unable to mark all notifications as read.";
+
+      setNotificationsError(message);
+    }
+  }
+
+  function openNotification(notification: Notification) {
+    if (!notification.is_read) {
+      markNotificationAsRead(notification.id);
+    }
+
+    setNotificationsOpen(false);
+
+    if (notification.related_case_id) {
+      router.push(`/lawyer/cases?case=${notification.related_case_id}`);
+      return;
+    }
+
+    if (notification.related_hearing_id) {
+      router.push("/lawyer/hearings");
+      return;
+    }
+
+    if (notification.related_task_id) {
+      router.push("/lawyer/tasks");
+      return;
+    }
+
+    if (notification.related_document_id) {
+      router.push("/lawyer/documents");
+      return;
+    }
+  }
 
   async function handleLogout() {
     try {
@@ -482,7 +686,7 @@ export default function LawyerDashboard() {
         </aside>
 
         <section className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-20 flex min-h-20 items-center justify-between border-b border-slate-800 bg-slate-950/95 px-4 backdrop-blur sm:px-6 lg:px-8">
+          <header className="sticky top-0 z-30 flex min-h-20 items-center justify-between border-b border-slate-800 bg-slate-950/95 px-4 backdrop-blur sm:px-6 lg:px-8">
             <div className="min-w-0">
               <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500 sm:text-xs">
                 Lawyer Workspace
@@ -494,6 +698,187 @@ export default function LawyerDashboard() {
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3">
+              <div className="relative" ref={notificationRef}>
+                <button
+                  type="button"
+                  aria-label="Notifications"
+                  aria-expanded={notificationsOpen}
+                  onClick={() => {
+                    setNotificationsOpen((current) => !current);
+
+                    if (!notificationsOpen) {
+                      loadNotifications();
+                    }
+                  }}
+                  className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-800 bg-slate-900 text-slate-400 transition hover:border-slate-700 hover:bg-slate-800 hover:text-white"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    className="h-5 w-5"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9a6 6 0 1 0-12 0v.75a8.967 8.967 0 0 1-2.31 6.022c1.733.64 3.55 1.08 5.454 1.31m5.713 0a24.255 24.255 0 0 1-5.713 0m5.713 0a3 3 0 1 1-5.713 0"
+                    />
+                  </svg>
+
+                  {unreadNotifications > 0 && (
+                    <span className="absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full border-2 border-slate-950 bg-red-500 px-1 text-[10px] font-bold text-white">
+                      {unreadNotifications > 99 ? "99+" : unreadNotifications}
+                    </span>
+                  )}
+                </button>
+
+                {notificationsOpen && (
+                  <div className="absolute right-0 top-12 z-50 w-[calc(100vw-2rem)] max-w-md overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-2xl shadow-black/40">
+                    <div className="flex items-center justify-between border-b border-slate-800 px-4 py-4">
+                      <div>
+                        <h2 className="text-sm font-semibold text-white">
+                          Notifications
+                        </h2>
+
+                        <p className="mt-1 text-xs text-slate-500">
+                          {unreadNotifications > 0
+                            ? `${unreadNotifications} unread notification${
+                                unreadNotifications === 1 ? "" : "s"
+                              }`
+                            : "You're all caught up"}
+                        </p>
+                      </div>
+
+                      {unreadNotifications > 0 && (
+                        <button
+                          type="button"
+                          onClick={markAllNotificationsAsRead}
+                          className="text-xs font-medium text-blue-400 transition hover:text-blue-300"
+                        >
+                          Mark all as read
+                        </button>
+                      )}
+                    </div>
+
+                    {notificationsError && (
+                      <div className="border-b border-red-900/50 bg-red-950/20 px-4 py-3">
+                        <p className="text-xs text-red-300">
+                          {notificationsError}
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="max-h-[28rem] overflow-y-auto">
+                      {notificationsLoading ? (
+                        <div className="space-y-3 p-4">
+                          {[1, 2, 3].map((item) => (
+                            <div
+                              key={item}
+                              className="animate-pulse rounded-xl border border-slate-800 p-3"
+                            >
+                              <div className="flex gap-3">
+                                <div className="h-9 w-9 rounded-lg bg-slate-800" />
+
+                                <div className="flex-1">
+                                  <div className="h-3 w-32 rounded bg-slate-800" />
+                                  <div className="mt-2 h-3 w-full rounded bg-slate-800" />
+                                  <div className="mt-2 h-3 w-20 rounded bg-slate-800" />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : notifications.length === 0 ? (
+                        <div className="px-5 py-12 text-center">
+                          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-slate-800 bg-slate-900 text-lg text-slate-500">
+                            ✓
+                          </div>
+
+                          <p className="mt-4 text-sm font-medium text-slate-300">
+                            No notifications
+                          </p>
+
+                          <p className="mt-2 text-xs leading-5 text-slate-600">
+                            New hearings, tasks, cases, documents, and system
+                            events will appear here.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-slate-800">
+                          {notifications.map((notification) => (
+                            <button
+                              key={notification.id}
+                              type="button"
+                              onClick={() => openNotification(notification)}
+                              className={`w-full px-4 py-4 text-left transition hover:bg-slate-900 ${
+                                notification.is_read
+                                  ? "bg-slate-950"
+                                  : "bg-blue-950/10"
+                              }`}
+                            >
+                              <div className="flex gap-3">
+                                <div
+                                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border text-xs font-semibold ${getNotificationIconClass(
+                                    notification.notification_type,
+                                  )}`}
+                                >
+                                  {getNotificationIcon(
+                                    notification.notification_type,
+                                  )}
+                                </div>
+
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <p
+                                      className={`text-sm ${
+                                        notification.is_read
+                                          ? "font-medium text-slate-300"
+                                          : "font-semibold text-white"
+                                      }`}
+                                    >
+                                      {notification.title}
+                                    </p>
+
+                                    {!notification.is_read && (
+                                      <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-blue-400" />
+                                    )}
+                                  </div>
+
+                                  <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
+                                    {notification.message}
+                                  </p>
+
+                                  <p className="mt-2 text-[10px] text-slate-600">
+                                    {formatNotificationDate(
+                                      notification.created_at,
+                                    )}
+                                  </p>
+                                </div>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="border-t border-slate-800 px-4 py-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNotificationsOpen(false);
+                          router.push("/lawyer/notifications");
+                        }}
+                        className="w-full rounded-lg border border-slate-800 px-3 py-2 text-xs font-medium text-slate-400 transition hover:bg-slate-900 hover:text-white"
+                      >
+                        View all notifications
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="hidden text-right md:block">
                 <p className="max-w-52 truncate text-sm font-medium text-white">
                   {loading && !user ? "Loading..." : displayName}
@@ -626,75 +1011,6 @@ export default function LawyerDashboard() {
                 <p className="mt-2 text-xs text-slate-600">
                   Tasks requiring attention
                 </p>
-              </div>
-            </div>
-
-            <div className="mt-10">
-              <div className="mb-5">
-                <h2 className="text-lg font-semibold">Workspace modules</h2>
-
-                <p className="mt-1 text-sm text-slate-500">
-                  Access the main areas of your legal practice.
-                </p>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {modules.map((module) => {
-                  if (module.title === "Clients") {
-                    return (
-                      <button
-                        key={module.title}
-                        type="button"
-                        onClick={openClients}
-                        className="group rounded-2xl border border-slate-800 bg-slate-900/40 p-5 text-left transition hover:border-slate-700 hover:bg-slate-900"
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-800 bg-slate-950 text-sm font-semibold text-blue-400">
-                            {module.icon}
-                          </div>
-
-                          <span className="text-slate-700 transition group-hover:text-blue-400">
-                            →
-                          </span>
-                        </div>
-
-                        <h3 className="mt-5 text-base font-semibold">
-                          {module.title}
-                        </h3>
-
-                        <p className="mt-2 text-sm leading-6 text-slate-500">
-                          {module.description}
-                        </p>
-                      </button>
-                    );
-                  }
-
-                  return (
-                    <Link
-                      key={module.title}
-                      href={module.href}
-                      className="group rounded-2xl border border-slate-800 bg-slate-900/40 p-5 transition hover:border-slate-700 hover:bg-slate-900"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-800 bg-slate-950 text-sm font-semibold text-blue-400">
-                          {module.icon}
-                        </div>
-
-                        <span className="text-slate-700 transition group-hover:text-blue-400">
-                          →
-                        </span>
-                      </div>
-
-                      <h3 className="mt-5 text-base font-semibold">
-                        {module.title}
-                      </h3>
-
-                      <p className="mt-2 text-sm leading-6 text-slate-500">
-                        {module.description}
-                      </p>
-                    </Link>
-                  );
-                })}
               </div>
             </div>
 
@@ -1008,8 +1324,8 @@ export default function LawyerDashboard() {
 
                   <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
                     Your Django authentication system is connected to the
-                    Next.js frontend. Dashboard information is now being loaded
-                    from the Django backend.
+                    Next.js frontend. Dashboard information and notifications
+                    are loaded from the Django backend.
                   </p>
                 </div>
 

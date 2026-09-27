@@ -99,10 +99,8 @@ def clients_list_create(request):
             or user.role == "super_admin"
         ):
             if user.role == "lawyer":
-                clients = clients.filter(
-                    Q(created_by=user)
-                    | Q(cases__assigned_lawyer=user)
-                ).distinct()
+                # Lawyers can see all clients in the firm.
+                clients = clients.all()
             else:
                 clients = clients.filter(
                     created_by=user,

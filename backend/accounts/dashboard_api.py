@@ -22,31 +22,41 @@ def dashboard(request):
         hearings = Hearing.objects.all()
         tasks = Task.objects.all()
         documents = Document.objects.all()
+
     elif user.role == "lawyer":
         cases = Case.objects.filter(
             assigned_lawyer=user,
         )
-        clients = Client.objects.filter(
-            cases__assigned_lawyer=user,
-        ).distinct()
+
+        # Show ALL clients in the firm.
+        # Client identity is based on the database primary key (id),
+        # not on the client's name or whether they have an assigned case.
+        clients = Client.objects.all()
+
         hearings = Hearing.objects.filter(
             case__assigned_lawyer=user,
         )
+
         tasks = Task.objects.filter(
             Q(assigned_to=user)
             | Q(case__assigned_lawyer=user)
         ).distinct()
+
         documents = Document.objects.filter(
             Q(uploaded_by=user)
             | Q(case__assigned_lawyer=user)
         ).distinct()
+
     else:
         cases = Case.objects.all()
         clients = Client.objects.all()
+
         hearings = Hearing.objects.all()
+
         tasks = Task.objects.filter(
             assigned_to=user,
         )
+
         documents = Document.objects.filter(
             uploaded_by=user,
         )
@@ -57,7 +67,10 @@ def dashboard(request):
         status=Case.Status.ACTIVE,
     ).count()
 
-    total_clients_count = clients.count()
+    # Count actual Client database records.
+    # Client.id is the unique identifier, so clients with
+    # the same name are still counted as separate clients.
+    total_clients_count = clients.values("id").distinct().count()
 
     upcoming_hearings_count = hearings.filter(
         hearing_date__gte=today,
@@ -105,6 +118,7 @@ def dashboard(request):
                     "upcoming_hearings": upcoming_hearings_count,
                     "pending_tasks": pending_tasks_count,
                 },
+
                 "recent_cases": [
                     {
                         "id": case.id,
@@ -122,6 +136,7 @@ def dashboard(request):
                     }
                     for case in recent_cases
                 ],
+
                 "upcoming_hearings": [
                     {
                         "id": hearing.id,
@@ -141,6 +156,7 @@ def dashboard(request):
                     }
                     for hearing in upcoming_hearings
                 ],
+
                 "recent_documents": [
                     {
                         "id": document.id,

@@ -8,7 +8,10 @@ class Hearing(models.Model):
         related_name="hearings",
     )
 
-    hearing_date = models.DateField()
+    hearing_date = models.DateField(
+        null=True,
+        blank=True,
+    )
 
     hearing_time = models.TimeField(
         null=True,
@@ -58,4 +61,7 @@ class Hearing(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.case.case_number} - {self.hearing_date}"
+        if self.hearing_date:
+            return f"{self.case.case_number} - {self.hearing_date}"
+
+        return f"{self.case.case_number} - Date pending"

@@ -3,15 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-
-type User = {
-  id: number;
-  email: string;
-  username: string;
-  first_name: string;
-  last_name: string;
-  role: string;
-};
+import NotificationBell from "@/components/lawyer/NotificationBell";
 
 type LegalCase = {
   id: number;
@@ -35,7 +27,7 @@ type Hearing = {
     id: number;
     full_name: string;
   };
-  hearing_date: string;
+  hearing_date: string | null;
   hearing_time: string | null;
   court: string;
   judge: string;
@@ -61,7 +53,7 @@ type HearingForm = {
 
 const emptyForm: HearingForm = {
   case_id: "",
-  hearing_date: new Date().toISOString().split("T")[0],
+  hearing_date: "",
   hearing_time: "",
   court: "",
   judge: "",
@@ -71,18 +63,11 @@ const emptyForm: HearingForm = {
   notes: "",
 };
 
-function getInitials(firstName: string, lastName: string, email: string) {
-  const first = firstName?.trim()?.charAt(0) || "";
-  const last = lastName?.trim()?.charAt(0) || "";
-
-  if (first || last) {
-    return `${first}${last}`.toUpperCase();
+function parseDate(date: string | null) {
+  if (!date) {
+    return null;
   }
 
-  return email.charAt(0).toUpperCase();
-}
-
-function parseDate(date: string) {
   const parsedDate = new Date(`${date}T00:00:00`);
 
   if (Number.isNaN(parsedDate.getTime())) {
@@ -94,7 +79,7 @@ function parseDate(date: string) {
 
 function formatDate(date: string | null) {
   if (!date) {
-    return "—";
+    return "Date not scheduled";
   }
 
   const parsedDate = parseDate(date);
@@ -110,7 +95,11 @@ function formatDate(date: string | null) {
   });
 }
 
-function formatLongDate(date: string) {
+function formatLongDate(date: string | null) {
+  if (!date) {
+    return "Date not scheduled";
+  }
+
   const parsedDate = parseDate(date);
 
   if (!parsedDate) {
@@ -146,7 +135,7 @@ function formatTime(time: string | null) {
   });
 }
 
-function isToday(date: string) {
+function isToday(date: string | null) {
   const parsedDate = parseDate(date);
 
   if (!parsedDate) {
@@ -162,7 +151,7 @@ function isToday(date: string) {
   );
 }
 
-function isTomorrow(date: string) {
+function isTomorrow(date: string | null) {
   const parsedDate = parseDate(date);
 
   if (!parsedDate) {
@@ -180,7 +169,11 @@ function isTomorrow(date: string) {
   );
 }
 
-function getDateLabel(date: string) {
+function getDateLabel(date: string | null) {
+  if (!date) {
+    return "Date not scheduled";
+  }
+
   if (isToday(date)) {
     return "Today";
   }
@@ -192,7 +185,7 @@ function getDateLabel(date: string) {
   return formatDate(date);
 }
 
-function getDayNumber(date: string) {
+function getDayNumber(date: string | null) {
   const parsedDate = parseDate(date);
 
   if (!parsedDate) {
@@ -204,7 +197,7 @@ function getDayNumber(date: string) {
   });
 }
 
-function getMonthShort(date: string) {
+function getMonthShort(date: string | null) {
   const parsedDate = parseDate(date);
 
   if (!parsedDate) {
@@ -219,7 +212,6 @@ function getMonthShort(date: string) {
 export default function HearingsPage() {
   const router = useRouter();
 
-  const [user, setUser] = useState<User | null>(null);
   const [hearings, setHearings] = useState<Hearing[]>([]);
   const [cases, setCases] = useState<LegalCase[]>([]);
 
@@ -246,26 +238,6 @@ export default function HearingsPage() {
   const [form, setForm] = useState<HearingForm>(emptyForm);
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-
-  const loadUser = useCallback(async () => {
-    try {
-      const response = await fetch("/api/auth/me/", {
-        credentials: "include",
-        cache: "no-store",
-      });
-
-      const data = await response.json();
-
-      if (!data.authenticated) {
-        router.push("/login");
-        return;
-      }
-
-      setUser(data.user);
-    } catch {
-      setError("Unable to load your account information.");
-    }
-  }, [router]);
 
   const loadCases = useCallback(async () => {
     try {
@@ -350,7 +322,7 @@ export default function HearingsPage() {
     let cancelled = false;
 
     async function initializePage() {
-      await Promise.all([loadUser(), loadCases(), loadHearings()]);
+      await Promise.all([loadCases(), loadHearings()]);
 
       if (!cancelled) {
         setLoading(false);
@@ -362,7 +334,7 @@ export default function HearingsPage() {
     return () => {
       cancelled = true;
     };
-  }, [loadCases, loadHearings, loadUser]);
+  }, [loadCases, loadHearings]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -382,19 +354,14 @@ export default function HearingsPage() {
       .filter((hearing) => {
         const date = parseDate(hearing.hearing_date);
 
-        return date && date >= today;
+        return date !== null && date >= today;
       })
       .sort((a, b) => {
-        const dateA = parseDate(a.hearing_date);
-
-        const dateB = parseDate(b.hearing_date);
-
-        if (!dateA || !dateB) {
+        if (!a.hearing_date || !b.hearing_date) {
           return 0;
         }
 
         const timeA = a.hearing_time || "23:59";
-
         const timeB = b.hearing_time || "23:59";
 
         return `${a.hearing_date}T${timeA}`.localeCompare(
@@ -414,18 +381,15 @@ export default function HearingsPage() {
     [upcomingHearings],
   );
 
-  const unscheduledTimeCount = useMemo(
-    () => hearings.filter((hearing) => !hearing.hearing_time).length,
+  const unscheduledCount = useMemo(
+    () => hearings.filter((hearing) => !hearing.hearing_date).length,
     [hearings],
   );
 
   function openCreateModal() {
     setEditingHearing(null);
     setSelectedHearing(null);
-    setForm({
-      ...emptyForm,
-      hearing_date: new Date().toISOString().split("T")[0],
-    });
+    setForm({ ...emptyForm });
     setFormErrors({});
     setError("");
     setSuccess("");
@@ -438,7 +402,7 @@ export default function HearingsPage() {
 
     setForm({
       case_id: String(hearing.case_id),
-      hearing_date: hearing.hearing_date,
+      hearing_date: hearing.hearing_date || "",
       hearing_time: hearing.hearing_time || "",
       court: hearing.court,
       judge: hearing.judge,
@@ -505,7 +469,7 @@ export default function HearingsPage() {
 
     const payload = {
       case_id: Number(form.case_id),
-      hearing_date: form.hearing_date,
+      hearing_date: form.hearing_date || null,
       hearing_time: form.hearing_time || null,
       court: form.court.trim(),
       judge: form.judge.trim(),
@@ -541,7 +505,7 @@ export default function HearingsPage() {
 
       setShowFormModal(false);
       setEditingHearing(null);
-      setForm(emptyForm);
+      setForm({ ...emptyForm });
 
       setSuccess(
         editingHearing
@@ -598,17 +562,6 @@ export default function HearingsPage() {
       );
     } finally {
       setDeleting(false);
-    }
-  }
-
-  async function handleLogout() {
-    try {
-      await fetch("/api/auth/logout/", {
-        method: "POST",
-        credentials: "include",
-      });
-    } finally {
-      router.push("/login");
     }
   }
 
@@ -710,17 +663,21 @@ export default function HearingsPage() {
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={openCreateModal}
-                className="flex shrink-0 items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-200"
-              >
-                <span className="text-lg leading-none">+</span>
+              <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+                <NotificationBell />
 
-                <span className="hidden sm:inline">New Hearing</span>
+                <button
+                  type="button"
+                  onClick={openCreateModal}
+                  className="flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-200"
+                >
+                  <span className="text-lg leading-none">+</span>
 
-                <span className="sm:hidden">New</span>
-              </button>
+                  <span className="hidden sm:inline">New Hearing</span>
+
+                  <span className="sm:hidden">New</span>
+                </button>
+              </div>
             </div>
           </header>
 
@@ -788,11 +745,11 @@ export default function HearingsPage() {
 
               <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                  No Time Set
+                  Date Not Set
                 </p>
 
                 <p className="mt-2 text-2xl font-semibold text-amber-400">
-                  {unscheduledTimeCount}
+                  {unscheduledCount}
                 </p>
               </div>
             </section>
@@ -827,7 +784,7 @@ export default function HearingsPage() {
                   </p>
 
                   <p className="mt-1 text-xs text-slate-600">
-                    Upcoming hearings will appear here.
+                    Hearings will appear here once a date is scheduled.
                   </p>
                 </div>
               ) : (
@@ -1250,7 +1207,8 @@ export default function HearingsPage() {
                     </h3>
 
                     <p className="mt-1 text-xs text-slate-500">
-                      Connect the hearing to a case and set its date and time.
+                      Connect the hearing to a case. Date and time can be left
+                      empty if the court has not scheduled them yet.
                     </p>
                   </div>
 
@@ -1303,7 +1261,7 @@ export default function HearingsPage() {
                         htmlFor="hearing_date"
                         className="mb-2 block text-xs font-medium text-slate-400"
                       >
-                        Hearing Date *
+                        Hearing Date
                       </label>
 
                       <input
@@ -1319,6 +1277,10 @@ export default function HearingsPage() {
                             : "border-slate-700"
                         }`}
                       />
+
+                      <p className="mt-1.5 text-xs text-slate-600">
+                        Leave empty if the hearing date is not known yet.
+                      </p>
 
                       {formErrors.hearing_date && (
                         <p className="mt-1.5 text-xs text-red-400">
@@ -1348,6 +1310,10 @@ export default function HearingsPage() {
                             : "border-slate-700"
                         }`}
                       />
+
+                      <p className="mt-1.5 text-xs text-slate-600">
+                        Optional until the court provides a time.
+                      </p>
 
                       {formErrors.hearing_time && (
                         <p className="mt-1.5 text-xs text-red-400">
@@ -1577,7 +1543,7 @@ export default function HearingsPage() {
                     </span>
 
                     <span className="text-xs uppercase text-slate-500">
-                      {getMonthShort(selectedHearing.hearing_date)}
+                      {getMonthShort(selectedHearing.hearing_date) || "—"}
                     </span>
                   </div>
 
@@ -1726,7 +1692,7 @@ export default function HearingsPage() {
               <span className="font-medium text-slate-300">
                 {selectedHearing.case.case_number}
               </span>{" "}
-              scheduled for{" "}
+              with date{" "}
               <span className="font-medium text-slate-300">
                 {formatDate(selectedHearing.hearing_date)}
               </span>

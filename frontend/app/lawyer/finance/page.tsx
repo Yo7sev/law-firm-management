@@ -3,6 +3,7 @@
 import type { FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import NotificationBell from "@/components/lawyer/NotificationBell";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 type Client = {
@@ -35,19 +36,9 @@ type FinancialTransaction = {
   updated_at: string;
 };
 
-type Statistics = {
-  total_invoices: string | number;
-  total_payments: string | number;
-  total_expenses: string | number;
-  total_refunds: string | number;
-  outstanding_balance: string | number;
-  transaction_count: number;
-};
-
 type TransactionsResponse = {
   success: boolean;
   transactions: FinancialTransaction[];
-  statistics: Statistics;
 };
 
 type ClientsResponse = {
@@ -76,13 +67,10 @@ type TransactionForm = {
   case_id: string;
 };
 
-const emptyStatistics: Statistics = {
-  total_invoices: 0,
-  total_payments: 0,
-  total_expenses: 0,
-  total_refunds: 0,
-  outstanding_balance: 0,
-  transaction_count: 0,
+type MonthlyGroup = {
+  key: string;
+  label: string;
+  transactions: FinancialTransaction[];
 };
 
 function getToday() {
@@ -130,6 +118,38 @@ function formatDate(value: string) {
   });
 }
 
+function formatDay(value: string) {
+  if (!value) {
+    return "-";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "-";
+  }
+
+  return date.toLocaleDateString("en-GB", {
+    day: "2-digit",
+  });
+}
+
+function formatShortMonth(value: string) {
+  if (!value) {
+    return "-";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "-";
+  }
+
+  return date.toLocaleDateString("en-GB", {
+    month: "short",
+  });
+}
+
 function getTransactionTypeLabel(type: string) {
   switch (type) {
     case "invoice":
@@ -148,16 +168,96 @@ function getTransactionTypeLabel(type: string) {
 function getTransactionTypeClasses(type: string) {
   switch (type) {
     case "invoice":
-      return "bg-blue-500/10 text-blue-400";
+      return "bg-blue-500/10 text-blue-400 border-blue-500/20";
     case "payment":
-      return "bg-emerald-500/10 text-emerald-400";
+      return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
     case "expense":
-      return "bg-amber-500/10 text-amber-400";
+      return "bg-amber-500/10 text-amber-400 border-amber-500/20";
     case "refund":
-      return "bg-red-500/10 text-red-400";
+      return "bg-red-500/10 text-red-400 border-red-500/20";
     default:
-      return "bg-slate-800 text-slate-300";
+      return "bg-slate-800 text-slate-300 border-slate-700";
   }
+}
+
+function getTransactionAmountClasses(type: string) {
+  switch (type) {
+    case "invoice":
+    case "payment":
+      return "text-emerald-400";
+    case "expense":
+    case "refund":
+      return "text-red-400";
+    default:
+      return "text-white";
+  }
+}
+
+function getTransactionAmountPrefix(type: string) {
+  switch (type) {
+    case "invoice":
+    case "payment":
+      return "+";
+    case "expense":
+    case "refund":
+      return "-";
+    default:
+      return "";
+  }
+}
+
+function monthKey(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "unknown";
+  }
+
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+    2,
+    "0",
+  )}`;
+}
+
+function monthLabel(key: string) {
+  if (key === "unknown") {
+    return "Unknown Date";
+  }
+
+  const [year, month] = key.split("-").map(Number);
+
+  return new Date(year, month - 1, 1).toLocaleDateString("en-GB", {
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function groupByMonth(transactions: FinancialTransaction[]): MonthlyGroup[] {
+  const groups = new Map<string, FinancialTransaction[]>();
+
+  for (const transaction of transactions) {
+    const key = monthKey(transaction.transaction_date);
+    const current = groups.get(key) ?? [];
+
+    current.push(transaction);
+    groups.set(key, current);
+  }
+
+  return Array.from(groups.entries())
+    .map(([key, items]) => {
+      const sorted = [...items].sort(
+        (a, b) =>
+          new Date(b.transaction_date).getTime() -
+          new Date(a.transaction_date).getTime(),
+      );
+
+      return {
+        key,
+        label: monthLabel(key),
+        transactions: sorted,
+      };
+    })
+    .sort((a, b) => b.key.localeCompare(a.key));
 }
 
 export default function FinancePage() {
@@ -166,7 +266,6 @@ export default function FinancePage() {
   const [transactions, setTransactions] = useState<FinancialTransaction[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [cases, setCases] = useState<CaseItem[]>([]);
-  const [statistics, setStatistics] = useState<Statistics>(emptyStatistics);
 
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
@@ -182,6 +281,10 @@ export default function FinancePage() {
 
   const [form, setForm] = useState<TransactionForm>(createEmptyForm());
 
+  const [collapsedMonths, setCollapsedMonths] = useState<
+    Record<string, boolean>
+  >({});
+
   const filteredCasesForForm = useMemo(() => {
     if (!form.client_id) {
       return cases;
@@ -191,6 +294,11 @@ export default function FinancePage() {
       (caseItem) => String(caseItem.client_id) === form.client_id,
     );
   }, [cases, form.client_id]);
+
+  const monthlyGroups = useMemo(
+    () => groupByMonth(transactions),
+    [transactions],
+  );
 
   const loadInitialData = useCallback(async () => {
     try {
@@ -278,7 +386,6 @@ export default function FinancePage() {
       const data = (await response.json()) as TransactionsResponse;
 
       setTransactions(data.transactions ?? []);
-      setStatistics(data.statistics ?? emptyStatistics);
       setError("");
     } catch (err) {
       setError(
@@ -310,6 +417,13 @@ export default function FinancePage() {
       window.clearTimeout(timer);
     };
   }, [loadTransactions]);
+
+  function toggleMonth(key: string) {
+    setCollapsedMonths((current) => ({
+      ...current,
+      [key]: !current[key],
+    }));
+  }
 
   function openCreateModal() {
     setEditingTransaction(null);
@@ -564,17 +678,21 @@ export default function FinancePage() {
                 <h1 className="text-3xl font-bold tracking-tight">Finance</h1>
 
                 <p className="mt-2 text-sm text-slate-400">
-                  Manage invoices, payments, expenses, and refunds.
+                  Financial activity organized by month.
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={openCreateModal}
-                className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-blue-500"
-              >
-                Add Transaction
-              </button>
+              <div className="flex items-center gap-2 sm:gap-3">
+                <NotificationBell />
+
+                <button
+                  type="button"
+                  onClick={openCreateModal}
+                  className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-blue-500"
+                >
+                  Add Transaction
+                </button>
+              </div>
             </div>
 
             {error && (
@@ -582,33 +700,6 @@ export default function FinancePage() {
                 {error}
               </div>
             )}
-
-            <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-              <SummaryCard
-                label="Total Invoiced"
-                value={formatMoney(statistics.total_invoices)}
-              />
-
-              <SummaryCard
-                label="Total Paid"
-                value={formatMoney(statistics.total_payments)}
-              />
-
-              <SummaryCard
-                label="Expenses"
-                value={formatMoney(statistics.total_expenses)}
-              />
-
-              <SummaryCard
-                label="Refunds"
-                value={formatMoney(statistics.total_refunds)}
-              />
-
-              <SummaryCard
-                label="Balance"
-                value={formatMoney(statistics.outstanding_balance)}
-              />
-            </div>
 
             <div className="mb-6 rounded-xl border border-slate-800 bg-slate-900/50 p-4">
               <div className="grid gap-4 md:grid-cols-3">
@@ -678,26 +769,13 @@ export default function FinancePage() {
               </div>
             </div>
 
-            <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900/50">
-              <div className="border-b border-slate-800 px-6 py-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="font-semibold">Transactions</h2>
-
-                    <p className="mt-1 text-xs text-slate-500">
-                      {statistics.transaction_count} transaction
-                      {statistics.transaction_count === 1 ? "" : "s"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
+            <div className="space-y-4">
               {isLoading ? (
-                <div className="px-6 py-16 text-center text-sm text-slate-500">
+                <div className="rounded-xl border border-slate-800 bg-slate-900/50 px-6 py-16 text-center text-sm text-slate-500">
                   Loading transactions...
                 </div>
-              ) : transactions.length === 0 ? (
-                <div className="px-6 py-16 text-center">
+              ) : monthlyGroups.length === 0 ? (
+                <div className="rounded-xl border border-slate-800 bg-slate-900/50 px-6 py-16 text-center">
                   <p className="text-sm font-medium text-slate-300">
                     No transactions found
                   </p>
@@ -707,112 +785,171 @@ export default function FinancePage() {
                   </p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[900px]">
-                    <thead>
-                      <tr className="border-b border-slate-800 text-left text-xs uppercase tracking-wide text-slate-500">
-                        <th className="px-6 py-4 font-medium">Date</th>
+                monthlyGroups.map((month) => {
+                  const isCollapsed = collapsedMonths[month.key] ?? false;
 
-                        <th className="px-6 py-4 font-medium">Type</th>
-
-                        <th className="px-6 py-4 font-medium">Client</th>
-
-                        <th className="px-6 py-4 font-medium">Case</th>
-
-                        <th className="px-6 py-4 font-medium">Description</th>
-
-                        <th className="px-6 py-4 text-right font-medium">
-                          Amount
-                        </th>
-
-                        <th className="px-6 py-4 text-right font-medium">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-
-                    <tbody className="divide-y divide-slate-800">
-                      {transactions.map((transaction) => (
-                        <tr
-                          key={transaction.id}
-                          className="transition hover:bg-slate-900"
-                        >
-                          <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-300">
-                            {formatDate(transaction.transaction_date)}
-                          </td>
-
-                          <td className="px-6 py-4">
-                            <span
-                              className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${getTransactionTypeClasses(
-                                transaction.transaction_type,
-                              )}`}
-                            >
-                              {getTransactionTypeLabel(
-                                transaction.transaction_type,
-                              )}
+                  return (
+                    <section
+                      key={month.key}
+                      className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900/50"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => toggleMonth(month.key)}
+                        className="flex w-full items-center justify-between px-5 py-5 text-left transition hover:bg-slate-900"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-700 bg-slate-950 text-slate-400">
+                            <span className="text-lg">
+                              {isCollapsed ? "›" : "⌄"}
                             </span>
-                          </td>
+                          </div>
 
-                          <td className="px-6 py-4 text-sm text-slate-300">
-                            {transaction.client?.full_name || "-"}
-                          </td>
+                          <div>
+                            <h2 className="text-lg font-semibold text-white">
+                              {month.label}
+                            </h2>
 
-                          <td className="px-6 py-4">
-                            {transaction.case ? (
-                              <div>
-                                <p className="text-sm font-medium text-slate-300">
-                                  {transaction.case.case_number}
-                                </p>
-
-                                <p className="mt-1 max-w-[180px] truncate text-xs text-slate-500">
-                                  {transaction.case.title}
-                                </p>
-                              </div>
-                            ) : (
-                              <span className="text-sm text-slate-600">-</span>
-                            )}
-                          </td>
-
-                          <td className="max-w-[240px] px-6 py-4">
-                            <p className="truncate text-sm text-slate-300">
-                              {transaction.description || "-"}
+                            <p className="mt-1 text-xs text-slate-500">
+                              {month.transactions.length}{" "}
+                              {month.transactions.length === 1
+                                ? "transaction"
+                                : "transactions"}
                             </p>
+                          </div>
+                        </div>
 
-                            {transaction.reference && (
-                              <p className="mt-1 truncate text-xs text-slate-600">
-                                Ref: {transaction.reference}
-                              </p>
-                            )}
-                          </td>
+                        <span className="text-xs text-slate-500">
+                          {isCollapsed
+                            ? "Show transactions"
+                            : "Hide transactions"}
+                        </span>
+                      </button>
 
-                          <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-semibold text-white">
-                            {formatMoney(transaction.amount)}
-                          </td>
+                      {!isCollapsed && (
+                        <div className="border-t border-slate-800">
+                          {month.transactions.map((transaction) => (
+                            <div
+                              key={transaction.id}
+                              className="group border-b border-slate-800 px-5 py-4 last:border-b-0 transition hover:bg-slate-900"
+                            >
+                              <div className="flex flex-col gap-4 xl:flex-row xl:items-center">
+                                <div className="flex min-w-[100px] items-center gap-3">
+                                  <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-lg bg-slate-950">
+                                    <span className="text-sm font-semibold text-white">
+                                      {formatDay(transaction.transaction_date)}
+                                    </span>
 
-                          <td className="whitespace-nowrap px-6 py-4 text-right">
-                            <div className="flex justify-end gap-2">
-                              <button
-                                type="button"
-                                onClick={() => openEditModal(transaction)}
-                                className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:border-slate-600 hover:bg-slate-800 hover:text-white"
-                              >
-                                Edit
-                              </button>
+                                    <span className="text-[9px] uppercase text-slate-600">
+                                      {formatShortMonth(
+                                        transaction.transaction_date,
+                                      )}
+                                    </span>
+                                  </div>
 
-                              <button
-                                type="button"
-                                onClick={() => void handleDelete(transaction)}
-                                className="rounded-lg border border-red-500/20 px-3 py-1.5 text-xs font-medium text-red-400 transition hover:bg-red-500/10"
-                              >
-                                Delete
-                              </button>
+                                  <div className="hidden xl:block">
+                                    <p className="text-xs text-slate-500">
+                                      {formatDate(transaction.transaction_date)}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className="min-w-[110px]">
+                                  <span
+                                    className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${getTransactionTypeClasses(
+                                      transaction.transaction_type,
+                                    )}`}
+                                  >
+                                    {getTransactionTypeLabel(
+                                      transaction.transaction_type,
+                                    )}
+                                  </span>
+                                </div>
+
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                    <p className="text-sm font-medium text-white">
+                                      {transaction.client?.full_name ||
+                                        "No Client"}
+                                    </p>
+
+                                    {transaction.case && (
+                                      <>
+                                        <span className="text-slate-700">
+                                          /
+                                        </span>
+
+                                        <p className="text-xs text-slate-500">
+                                          {transaction.case.case_number}
+                                        </p>
+                                      </>
+                                    )}
+                                  </div>
+
+                                  <p className="mt-1 truncate text-xs text-slate-500">
+                                    {transaction.description ||
+                                      "No description"}
+                                  </p>
+
+                                  {transaction.reference && (
+                                    <p className="mt-1 text-[11px] text-slate-600">
+                                      Ref: {transaction.reference}
+                                    </p>
+                                  )}
+                                </div>
+
+                                {transaction.case && (
+                                  <div className="hidden min-w-[180px] lg:block">
+                                    <p className="text-xs uppercase tracking-wide text-slate-600">
+                                      Case
+                                    </p>
+
+                                    <p className="mt-1 truncate text-sm text-slate-400">
+                                      {transaction.case.title}
+                                    </p>
+                                  </div>
+                                )}
+
+                                <div className="flex items-center justify-between gap-4 xl:min-w-[230px] xl:justify-end">
+                                  <p
+                                    className={`text-base font-semibold ${getTransactionAmountClasses(
+                                      transaction.transaction_type,
+                                    )}`}
+                                  >
+                                    {getTransactionAmountPrefix(
+                                      transaction.transaction_type,
+                                    )}
+                                    {formatMoney(transaction.amount)}
+                                  </p>
+
+                                  <div className="flex gap-2 opacity-100 transition xl:opacity-0 xl:group-hover:opacity-100">
+                                    <button
+                                      type="button"
+                                      onClick={() => openEditModal(transaction)}
+                                      className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:border-slate-600 hover:bg-slate-800 hover:text-white"
+                                    >
+                                      Edit
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        void handleDelete(transaction)
+                                      }
+                                      className="rounded-lg border border-red-500/20 px-3 py-1.5 text-xs font-medium text-red-400 transition hover:bg-red-500/10"
+                                    >
+                                      Delete
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
                             </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                          ))}
+                        </div>
+                      )}
+                    </section>
+                  );
+                })
               )}
             </div>
           </div>
@@ -1034,17 +1171,5 @@ export default function FinancePage() {
         </div>
       )}
     </main>
-  );
-}
-
-function SummaryCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-5">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-        {label}
-      </p>
-
-      <p className="mt-3 text-xl font-semibold text-white">{value}</p>
-    </div>
   );
 }

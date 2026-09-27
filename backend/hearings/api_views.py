@@ -1,8 +1,10 @@
 import json
+from datetime import date, datetime
 
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.http import JsonResponse
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods
 
@@ -51,7 +53,11 @@ def serialize_hearing(hearing):
             "id": hearing.case.client.id,
             "full_name": hearing.case.client.full_name,
         },
-        "hearing_date": hearing.hearing_date.isoformat(),
+        "hearing_date": (
+            hearing.hearing_date.isoformat()
+            if hearing.hearing_date
+            else None
+        ),
         "hearing_time": (
             hearing.hearing_time.strftime("%H:%M")
             if hearing.hearing_time
@@ -78,21 +84,62 @@ def validate_hearing_data(data, existing_hearing=None):
         else None,
     )
 
-    hearing_date = str(
-        data.get(
-            "hearing_date",
+    # ---------------------------------------------------------
+    # HEARING DATE
+    # ---------------------------------------------------------
+    #
+    # Date is optional.
+    #
+    # On create:
+    #   missing / empty / null -> None
+    #
+    # On update:
+    #   missing -> keep existing date
+    #   empty / null -> clear existing date
+    #
+    if existing_hearing and "hearing_date" not in data:
+        hearing_date = (
             existing_hearing.hearing_date.isoformat()
-            if existing_hearing
-            else "",
+            if existing_hearing.hearing_date
+            else None
         )
-    ).strip()
+    else:
+        raw_hearing_date = data.get("hearing_date")
 
-    hearing_time = data.get(
-        "hearing_time",
-        existing_hearing.hearing_time.strftime("%H:%M")
-        if existing_hearing and existing_hearing.hearing_time
-        else None,
-    )
+        if raw_hearing_date in [
+            None,
+            "",
+        ]:
+            hearing_date = None
+        else:
+            hearing_date = str(raw_hearing_date).strip()
+
+    # ---------------------------------------------------------
+    # HEARING TIME
+    # ---------------------------------------------------------
+    #
+    # Time is optional.
+    #
+    if existing_hearing and "hearing_time" not in data:
+        hearing_time = (
+            existing_hearing.hearing_time.strftime("%H:%M")
+            if existing_hearing.hearing_time
+            else None
+        )
+    else:
+        hearing_time = data.get("hearing_time")
+
+        if hearing_time in [
+            None,
+            "",
+        ]:
+            hearing_time = None
+        else:
+            hearing_time = str(hearing_time).strip()
+
+    # ---------------------------------------------------------
+    # PURPOSE
+    # ---------------------------------------------------------
 
     purpose = str(
         data.get(
@@ -103,18 +150,19 @@ def validate_hearing_data(data, existing_hearing=None):
         )
     ).strip()
 
+    # ---------------------------------------------------------
+    # REQUIRED FIELDS
+    # ---------------------------------------------------------
+
     if not case_id:
         errors["case_id"] = "Case is required."
 
-    if not hearing_date:
-        errors["hearing_date"] = (
-            "Hearing date is required."
-        )
-
     if not purpose:
-        errors["purpose"] = (
-            "Hearing purpose is required."
-        )
+        errors["purpose"] = "Hearing purpose is required."
+
+    # ---------------------------------------------------------
+    # CASE VALIDATION
+    # ---------------------------------------------------------
 
     case = None
 
@@ -122,7 +170,9 @@ def validate_hearing_data(data, existing_hearing=None):
         try:
             case = Case.objects.select_related(
                 "client",
-            ).get(pk=case_id)
+            ).get(
+                pk=case_id,
+            )
         except (
             Case.DoesNotExist,
             ValueError,
@@ -132,19 +182,41 @@ def validate_hearing_data(data, existing_hearing=None):
                 "Selected case does not exist."
             )
 
+    # ---------------------------------------------------------
+    # DATE VALIDATION
+    # ---------------------------------------------------------
+
+    if hearing_date:
+        try:
+            parsed_hearing_date = date.fromisoformat(
+                hearing_date,
+            )
+
+            if (
+                case
+                and case.closing_date
+                and parsed_hearing_date > case.closing_date
+            ):
+                errors["hearing_date"] = (
+                    "Hearing date cannot be after "
+                    "the case closing date."
+                )
+
+        except ValueError:
+            errors["hearing_date"] = (
+                "Hearing date must use YYYY-MM-DD format."
+            )
+
+    # ---------------------------------------------------------
+    # TIME VALIDATION
+    # ---------------------------------------------------------
+
     normalized_hearing_time = None
 
-    if hearing_time not in [
-        None,
-        "",
-    ]:
-        normalized_hearing_time = str(
-            hearing_time
-        ).strip()
+    if hearing_time:
+        normalized_hearing_time = hearing_time
 
         try:
-            from datetime import datetime
-
             datetime.strptime(
                 normalized_hearing_time,
                 "%H:%M",
@@ -154,89 +226,66 @@ def validate_hearing_data(data, existing_hearing=None):
                 "Hearing time must use HH:MM format."
             )
 
-    closing_date = (
-        case.closing_date
-        if case
-        else None
-    )
+    # ---------------------------------------------------------
+    # OTHER FIELDS
+    # ---------------------------------------------------------
 
-    if (
-        case
-        and case.closing_date
-        and hearing_date
-    ):
-        from datetime import date
+    court = str(
+        data.get(
+            "court",
+            existing_hearing.court
+            if existing_hearing
+            else "",
+        )
+    ).strip()
 
-        try:
-            parsed_hearing_date = date.fromisoformat(
-                hearing_date,
-            )
+    judge = str(
+        data.get(
+            "judge",
+            existing_hearing.judge
+            if existing_hearing
+            else "",
+        )
+    ).strip()
 
-            if parsed_hearing_date > closing_date:
-                errors["hearing_date"] = (
-                    "Hearing date cannot be after the case closing date."
-                )
-        except ValueError:
-            errors["hearing_date"] = (
-                "Hearing date must use YYYY-MM-DD format."
-            )
+    result = str(
+        data.get(
+            "result",
+            existing_hearing.result
+            if existing_hearing
+            else "",
+        )
+    ).strip()
 
-    if hearing_date:
-        from datetime import date
+    next_action = str(
+        data.get(
+            "next_action",
+            existing_hearing.next_action
+            if existing_hearing
+            else "",
+        )
+    ).strip()
 
-        try:
-            date.fromisoformat(hearing_date)
-        except ValueError:
-            errors["hearing_date"] = (
-                "Hearing date must use YYYY-MM-DD format."
-            )
+    notes = str(
+        data.get(
+            "notes",
+            existing_hearing.notes
+            if existing_hearing
+            else "",
+        )
+    ).strip()
 
     return {
         "errors": errors,
         "case": case,
         "hearing_date": hearing_date,
         "hearing_time": normalized_hearing_time,
-        "court": str(
-            data.get(
-                "court",
-                existing_hearing.court
-                if existing_hearing
-                else "",
-            )
-        ).strip(),
-        "judge": str(
-            data.get(
-                "judge",
-                existing_hearing.judge
-                if existing_hearing
-                else "",
-            )
-        ).strip(),
+        "court": court,
+        "judge": judge,
         "purpose": purpose,
-        "result": str(
-            data.get(
-                "result",
-                existing_hearing.result
-                if existing_hearing
-                else "",
-            )
-        ).strip(),
-        "next_action": str(
-            data.get(
-                "next_action",
-                existing_hearing.next_action
-                if existing_hearing
-                else "",
-            )
-        ).strip(),
-        "notes": str(
-            data.get(
-                "notes",
-                existing_hearing.notes
-                if existing_hearing
-                else "",
-            )
-        ).strip(),
+        "result": result,
+        "next_action": next_action,
+        "notes": notes,
     }
 
 
@@ -279,6 +328,10 @@ def hearings_list(request):
         "",
     ).strip().lower()
 
+    # ---------------------------------------------------------
+    # SEARCH
+    # ---------------------------------------------------------
+
     if search:
         hearings = hearings.filter(
             Q(case__case_number__icontains=search)
@@ -289,10 +342,18 @@ def hearings_list(request):
             | Q(purpose__icontains=search)
         )
 
+    # ---------------------------------------------------------
+    # CASE FILTER
+    # ---------------------------------------------------------
+
     if case_id:
         hearings = hearings.filter(
             case_id=case_id,
         )
+
+    # ---------------------------------------------------------
+    # DATE FILTERS
+    # ---------------------------------------------------------
 
     if date_from:
         hearings = hearings.filter(
@@ -304,13 +365,18 @@ def hearings_list(request):
             hearing_date__lte=date_to,
         )
 
+    # ---------------------------------------------------------
+    # UPCOMING
+    # ---------------------------------------------------------
+    #
+    # Hearings without a date are not considered upcoming.
+    #
+
     if upcoming in [
         "1",
         "true",
         "yes",
     ]:
-        from django.utils import timezone
-
         hearings = hearings.filter(
             hearing_date__gte=timezone.localdate(),
         )
@@ -378,7 +444,7 @@ def hearings_list_create(request):
     hearing = Hearing.objects.create(
         case=validated["case"],
         hearing_date=validated["hearing_date"],
-        hearing_time=validated["hearing_time"] or None,
+        hearing_time=validated["hearing_time"],
         court=validated["court"],
         judge=validated["judge"],
         purpose=validated["purpose"],
@@ -387,12 +453,14 @@ def hearings_list_create(request):
         notes=validated["notes"],
     )
 
-    hearing = Hearing.objects.select_related(
-        "case",
-        "case__client",
-        "case__assigned_lawyer",
-    ).get(
-        pk=hearing.pk,
+    hearing = (
+        Hearing.objects.select_related(
+            "case",
+            "case__client",
+            "case__assigned_lawyer",
+        ).get(
+            pk=hearing.pk,
+        )
     )
 
     return JsonResponse(
@@ -442,6 +510,10 @@ def hearing_detail(request, hearing_id):
             status=404,
         )
 
+    # ---------------------------------------------------------
+    # GET
+    # ---------------------------------------------------------
+
     if request.method == "GET":
         return JsonResponse(
             {
@@ -451,6 +523,10 @@ def hearing_detail(request, hearing_id):
                 ),
             }
         )
+
+    # ---------------------------------------------------------
+    # PERMISSION
+    # ---------------------------------------------------------
 
     if not can_manage_hearings(user):
         return JsonResponse(
@@ -464,6 +540,10 @@ def hearing_detail(request, hearing_id):
             status=403,
         )
 
+    # ---------------------------------------------------------
+    # DELETE
+    # ---------------------------------------------------------
+
     if request.method == "DELETE":
         hearing.delete()
 
@@ -475,6 +555,10 @@ def hearing_detail(request, hearing_id):
                 ),
             }
         )
+
+    # ---------------------------------------------------------
+    # UPDATE
+    # ---------------------------------------------------------
 
     try:
         data = json.loads(
@@ -507,13 +591,11 @@ def hearing_detail(request, hearing_id):
         )
 
     hearing.case = validated["case"]
-    hearing.hearing_date = (
-        validated["hearing_date"]
-    )
-    hearing.hearing_time = (
-        validated["hearing_time"]
-        or None
-    )
+
+    hearing.hearing_date = validated["hearing_date"]
+
+    hearing.hearing_time = validated["hearing_time"]
+
     hearing.court = validated["court"]
     hearing.judge = validated["judge"]
     hearing.purpose = validated["purpose"]
@@ -523,12 +605,14 @@ def hearing_detail(request, hearing_id):
 
     hearing.save()
 
-    hearing = Hearing.objects.select_related(
-        "case",
-        "case__client",
-        "case__assigned_lawyer",
-    ).get(
-        pk=hearing.pk,
+    hearing = (
+        Hearing.objects.select_related(
+            "case",
+            "case__client",
+            "case__assigned_lawyer",
+        ).get(
+            pk=hearing.pk,
+        )
     )
 
     return JsonResponse(
