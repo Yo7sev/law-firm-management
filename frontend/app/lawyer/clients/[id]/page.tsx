@@ -803,7 +803,7 @@ export default function ClientProfilePage() {
 
   if (!profile) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white">
+      <div className="min-h-screen bg-slate-50 text-slate-900">
         <Sidebar />
 
         <div className="lg:pl-64">
@@ -819,14 +819,14 @@ export default function ClientProfilePage() {
                 <button
                   type="button"
                   onClick={() => void loadProfile()}
-                  className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-500"
+                  className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-blue-500"
                 >
                   Try Again
                 </button>
 
                 <Link
                   href="/lawyer/clients"
-                  className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-slate-800"
+                  className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
                 >
                   Back to Clients
                 </Link>
@@ -851,7 +851,7 @@ export default function ClientProfilePage() {
   const balance = Number(statistics.total_remaining ?? statistics.balance ?? 0);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
+    <div className="min-h-screen bg-slate-50 text-slate-800">
       <Sidebar />
 
       <div className="lg:pl-64">
@@ -862,19 +862,19 @@ export default function ClientProfilePage() {
             <div className="flex flex-wrap items-center gap-2 text-sm">
               <Link
                 href="/lawyer/clients"
-                className="text-slate-400 transition hover:text-blue-400"
+                className="text-slate-500 transition hover:text-blue-400"
               >
                 Clients
               </Link>
 
-              <span className="text-slate-600">/</span>
+              <span className="text-slate-500">/</span>
 
-              <span className="max-w-[280px] truncate font-medium text-slate-200">
+              <span className="max-w-[280px] truncate font-medium text-slate-600">
                 {client.full_name}
               </span>
             </div>
 
-            <section className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/60 shadow-xl shadow-black/10">
+            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-xl shadow-black/10">
               <div className="h-1.5 bg-blue-600" />
 
               <div className="p-5 sm:p-6 lg:p-7">
@@ -886,7 +886,7 @@ export default function ClientProfilePage() {
 
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-3">
-                        <h1 className="truncate text-2xl font-bold tracking-tight text-white sm:text-3xl">
+                        <h1 className="truncate text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
                           {client.full_name}
                         </h1>
 
@@ -895,24 +895,24 @@ export default function ClientProfilePage() {
                         </span>
                       </div>
 
-                      <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm text-slate-400">
+                      <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm text-slate-500">
                         <span>
                           National ID:{" "}
-                          <span className="text-slate-300">
+                          <span className="text-slate-500">
                             {client.national_id || "Not provided"}
                           </span>
                         </span>
 
                         <span>
                           Phone:{" "}
-                          <span className="text-slate-300">
+                          <span className="text-slate-500">
                             {client.phone || "Not provided"}
                           </span>
                         </span>
 
                         <span>
                           Type:{" "}
-                          <span className="text-slate-300">
+                          <span className="text-slate-500">
                             {client.client_type_display ||
                               client.client_type ||
                               "Individual"}
@@ -925,7 +925,7 @@ export default function ClientProfilePage() {
                   <div className="flex flex-wrap gap-2">
                     <Link
                       href="/lawyer/clients"
-                      className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm font-semibold text-slate-300 transition hover:border-slate-600 hover:bg-slate-800 hover:text-white"
+                      className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-500 transition hover:border-slate-600 hover:bg-slate-100 hover:text-slate-900"
                     >
                       Back
                     </Link>
@@ -933,7 +933,7 @@ export default function ClientProfilePage() {
                     <button
                       type="button"
                       onClick={() => setEditOpen(true)}
-                      className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-blue-500/50 hover:bg-slate-800 hover:text-white"
+                      className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:border-blue-500/50 hover:bg-slate-100 hover:text-slate-900"
                     >
                       Edit Client
                     </button>
@@ -941,7 +941,7 @@ export default function ClientProfilePage() {
                     <button
                       type="button"
                       onClick={openNewCaseModal}
-                      className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-500"
+                      className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-blue-500"
                     >
                       + New Case
                     </button>
@@ -1008,8 +1008,8 @@ export default function ClientProfilePage() {
               />
             </div>
 
-            <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/50">
-              <div className="flex overflow-x-auto border-b border-slate-800">
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+              <div className="flex overflow-x-auto border-b border-slate-200">
                 {tabs.map((tab) => (
                   <button
                     key={tab.id}
@@ -1018,7 +1018,7 @@ export default function ClientProfilePage() {
                     className={`flex min-w-fit items-center gap-2 border-b-2 px-4 py-4 text-sm font-semibold transition sm:px-5 ${
                       activeTab === tab.id
                         ? "border-blue-500 text-blue-400"
-                        : "border-transparent text-slate-400 hover:bg-slate-800/50 hover:text-slate-200"
+                        : "border-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-600"
                     }`}
                   >
                     <span className="flex h-6 w-6 items-center justify-center rounded-md border border-current text-[10px] font-bold">
@@ -1129,15 +1129,15 @@ export default function ClientProfilePage() {
 
 function Sidebar() {
   return (
-    <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-slate-800 bg-slate-950 lg:flex lg:flex-col">
-      <div className="flex h-20 items-center border-b border-slate-800 px-5">
+    <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-slate-200 bg-slate-50 lg:flex lg:flex-col">
+      <div className="flex h-20 items-center border-b border-slate-200 px-5">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-sm font-black text-white">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-sm font-black text-slate-900">
             LF
           </div>
 
           <div>
-            <p className="font-bold text-white">LawFirm</p>
+            <p className="font-bold text-slate-900">LawFirm</p>
             <p className="text-[11px] text-slate-500">Management System</p>
           </div>
         </div>
@@ -1151,14 +1151,14 @@ function Sidebar() {
             className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
               item.active
                 ? "bg-blue-600/10 text-blue-400"
-                : "text-slate-400 hover:bg-slate-900 hover:text-slate-100"
+                : "text-slate-500 hover:bg-white hover:text-slate-800"
             }`}
           >
             <span
               className={`flex h-8 w-8 items-center justify-center rounded-lg text-[10px] font-bold ${
                 item.active
-                  ? "bg-blue-600 text-white"
-                  : "border border-slate-800 bg-slate-900 text-slate-500"
+                  ? "bg-blue-600 text-slate-900"
+                  : "border border-slate-200 bg-white text-slate-500"
               }`}
             >
               {getNavIcon(item.label)}
@@ -1169,9 +1169,9 @@ function Sidebar() {
         ))}
       </nav>
 
-      <div className="border-t border-slate-800 p-4">
-        <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
-          <p className="text-xs font-semibold text-slate-300">
+      <div className="border-t border-slate-200 p-4">
+        <div className="rounded-xl border border-slate-200 bg-white p-3">
+          <p className="text-xs font-semibold text-slate-500">
             Lawyer Workspace
           </p>
           <p className="mt-1 text-[11px] leading-5 text-slate-500">
@@ -1185,14 +1185,14 @@ function Sidebar() {
 
 function TopHeader({ title }: { title: string }) {
   return (
-    <header className="sticky top-0 z-30 min-h-20 border-b border-slate-800 bg-slate-950/95 backdrop-blur">
+    <header className="sticky top-0 z-30 min-h-20 border-b border-slate-200 bg-slate-50/95 backdrop-blur">
       <div className="flex min-h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-blue-400">
             Lawyer Workspace
           </p>
 
-          <h2 className="mt-1 text-xl font-bold tracking-tight text-white">
+          <h2 className="mt-1 text-xl font-bold tracking-tight text-slate-900">
             {title}
           </h2>
         </div>
@@ -1200,7 +1200,7 @@ function TopHeader({ title }: { title: string }) {
         <div className="flex items-center gap-2 sm:gap-3">
           <NotificationBell />
 
-          <div className="hidden rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-xs text-slate-400 sm:block">
+          <div className="hidden rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-500 sm:block">
             Secure Legal Management
           </div>
         </div>
@@ -1234,8 +1234,8 @@ function OverviewTab({
       />
 
       <div className="grid gap-6 xl:grid-cols-3">
-        <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-5 xl:col-span-2">
-          <h3 className="font-bold text-white">Personal Information</h3>
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-2">
+          <h3 className="font-bold text-slate-900">Personal Information</h3>
 
           <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             <InfoItem label="Full Name" value={client.full_name} />
@@ -1256,8 +1256,8 @@ function OverviewTab({
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-5">
-          <h3 className="font-bold text-white">Case Snapshot</h3>
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h3 className="font-bold text-slate-900">Case Snapshot</h3>
 
           <div className="mt-5 space-y-4">
             <SnapshotRow
@@ -1293,7 +1293,7 @@ function OverviewTab({
         <div className="rounded-2xl border border-blue-900/40 bg-blue-950/20 p-5">
           <h3 className="font-bold text-blue-300">Client Notes</h3>
 
-          <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-300">
+          <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-500">
             {client.notes}
           </p>
         </div>
@@ -1333,7 +1333,7 @@ function CasesTab({
           <button
             type="button"
             onClick={onNewCase}
-            className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-500"
+            className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-blue-500"
           >
             + New Case
           </button>
@@ -1349,18 +1349,18 @@ function CasesTab({
             <button
               type="button"
               onClick={onNewCase}
-              className="mt-4 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-500"
+              className="mt-4 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-slate-900 hover:bg-blue-500"
             >
               Create First Case
             </button>
           }
         />
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-slate-800">
+        <div className="overflow-hidden rounded-2xl border border-slate-200">
           <div className="overflow-x-auto">
             <table className="min-w-[900px] w-full text-left">
-              <thead className="bg-slate-950">
-                <tr className="border-b border-slate-800 text-xs uppercase tracking-wider text-slate-500">
+              <thead className="bg-slate-50">
+                <tr className="border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500">
                   <th className="px-5 py-4 font-semibold">Case</th>
                   <th className="px-5 py-4 font-semibold">Type</th>
                   <th className="px-5 py-4 font-semibold">Status</th>
@@ -1375,7 +1375,7 @@ function CasesTab({
                 {cases.map((caseItem) => (
                   <tr
                     key={caseItem.id}
-                    className="bg-slate-900/30 transition hover:bg-slate-900"
+                    className="bg-white/30 transition hover:bg-white"
                   >
                     <td className="px-5 py-4">
                       <button
@@ -1383,7 +1383,7 @@ function CasesTab({
                         onClick={() => onSelectCase(caseItem)}
                         className="text-left"
                       >
-                        <p className="font-semibold text-white hover:text-blue-400">
+                        <p className="font-semibold text-slate-900 hover:text-blue-400">
                           {caseItem.case_number}
                         </p>
                         <p className="mt-1 max-w-[260px] truncate text-xs text-slate-500">
@@ -1392,7 +1392,7 @@ function CasesTab({
                       </button>
                     </td>
 
-                    <td className="px-5 py-4 text-sm text-slate-400">
+                    <td className="px-5 py-4 text-sm text-slate-500">
                       {getCaseTypeName(caseItem) || "Not specified"}
                     </td>
 
@@ -1408,11 +1408,11 @@ function CasesTab({
                       />
                     </td>
 
-                    <td className="px-5 py-4 text-sm text-slate-400">
+                    <td className="px-5 py-4 text-sm text-slate-500">
                       {caseItem.court || "Not specified"}
                     </td>
 
-                    <td className="px-5 py-4 text-sm text-slate-400">
+                    <td className="px-5 py-4 text-sm text-slate-500">
                       {formatDate(caseItem.opening_date)}
                     </td>
 
@@ -1420,7 +1420,7 @@ function CasesTab({
                       <button
                         type="button"
                         onClick={() => onEditCase(caseItem)}
-                        className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300 transition hover:border-blue-500/50 hover:bg-slate-800 hover:text-white"
+                        className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-500 transition hover:border-blue-500/50 hover:bg-slate-100 hover:text-slate-900"
                       >
                         Edit
                       </button>
@@ -1465,16 +1465,16 @@ function HearingsTab({ hearings }: { hearings: HearingItem[] }) {
             return (
               <div
                 key={hearing.id ?? index}
-                className="rounded-2xl border border-slate-800 bg-slate-950/40 p-5"
+                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
               >
                 <div className="flex gap-4">
-                  <div className="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-xl border border-slate-800 bg-slate-900">
+                  <div className="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-xl border border-slate-200 bg-white">
                     {hearingDate ? (
                       <>
                         <span className="text-[10px] font-bold uppercase text-blue-400">
                           {formatMonth(hearingDate)}
                         </span>
-                        <span className="text-xl font-bold text-white">
+                        <span className="text-xl font-bold text-slate-900">
                           {formatDay(hearingDate)}
                         </span>
                       </>
@@ -1483,7 +1483,7 @@ function HearingsTab({ hearings }: { hearings: HearingItem[] }) {
                         <span className="text-[10px] font-bold uppercase text-amber-400">
                           DATE
                         </span>
-                        <span className="text-xs font-bold text-slate-300">
+                        <span className="text-xs font-bold text-slate-500">
                           Pending
                         </span>
                       </>
@@ -1493,7 +1493,7 @@ function HearingsTab({ hearings }: { hearings: HearingItem[] }) {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <h3 className="font-bold text-white">
+                        <h3 className="font-bold text-slate-900">
                           {hearing.purpose ||
                             hearing.type ||
                             hearing.hearing_type ||
@@ -1528,7 +1528,7 @@ function HearingsTab({ hearings }: { hearings: HearingItem[] }) {
                 </div>
 
                 {(hearing.result || hearing.next_action || hearing.notes) && (
-                  <div className="mt-5 space-y-3 border-t border-slate-800 pt-4">
+                  <div className="mt-5 space-y-3 border-t border-slate-200 pt-4">
                     {hearing.result && (
                       <InfoItem label="Result" value={hearing.result} />
                     )}
@@ -1567,7 +1567,7 @@ function DocumentsTab({ documents }: { documents: DocumentItem[] }) {
         action={
           <button
             type="button"
-            className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm font-semibold text-slate-300 transition hover:border-blue-500/50 hover:bg-slate-800 hover:text-white"
+            className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-500 transition hover:border-blue-500/50 hover:bg-slate-100 hover:text-slate-900"
           >
             + Upload Document
           </button>
@@ -1592,19 +1592,19 @@ function DocumentsTab({ documents }: { documents: DocumentItem[] }) {
             return (
               <div
                 key={document.id ?? index}
-                className="rounded-2xl border border-slate-800 bg-slate-950/40 p-5 transition hover:border-slate-700 hover:bg-slate-900"
+                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:bg-white"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-blue-500/20 bg-blue-500/10 text-sm font-bold text-blue-400">
                     D
                   </div>
 
-                  <span className="rounded-full border border-slate-700 bg-slate-900 px-2.5 py-1 text-[10px] font-bold uppercase text-slate-500">
+                  <span className="rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[10px] font-bold uppercase text-slate-500">
                     {document.document_type || document.type || "Document"}
                   </span>
                 </div>
 
-                <h3 className="mt-5 truncate font-semibold text-white">
+                <h3 className="mt-5 truncate font-semibold text-slate-900">
                   {name}
                 </h3>
 
@@ -1614,7 +1614,7 @@ function DocumentsTab({ documents }: { documents: DocumentItem[] }) {
 
                 <button
                   type="button"
-                  className="mt-5 w-full rounded-xl border border-slate-700 px-3 py-2.5 text-sm font-semibold text-slate-300 transition hover:bg-slate-800 hover:text-white"
+                  className="mt-5 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
                 >
                   View Document
                 </button>
@@ -1650,10 +1650,10 @@ function TasksTab({ tasks }: { tasks: TaskItem[] }) {
           {tasks.map((task, index) => (
             <div
               key={task.id ?? index}
-              className="rounded-2xl border border-slate-800 bg-slate-950/40 p-5"
+              className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
             >
               <div className="flex items-start justify-between gap-3">
-                <h3 className="font-semibold text-white">
+                <h3 className="font-semibold text-slate-900">
                   {task.title || task.name || `Task #${task.id ?? index + 1}`}
                 </h3>
 
@@ -1665,12 +1665,12 @@ function TasksTab({ tasks }: { tasks: TaskItem[] }) {
               </div>
 
               {task.description && (
-                <p className="mt-4 line-clamp-3 text-sm leading-6 text-slate-400">
+                <p className="mt-4 line-clamp-3 text-sm leading-6 text-slate-500">
                   {task.description}
                 </p>
               )}
 
-              <div className="mt-5 border-t border-slate-800 pt-4">
+              <div className="mt-5 border-t border-slate-200 pt-4">
                 <InfoItem
                   label="Deadline"
                   value={formatDate(task.deadline || task.due_date)}
@@ -1712,7 +1712,7 @@ function FinanceTab({
           <button
             type="button"
             onClick={onAddTransaction}
-            className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-500"
+            className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-blue-500"
           >
             + Add Transaction
           </button>
@@ -1731,9 +1731,9 @@ function FinanceTab({
         <FinanceCard label="Outstanding" value={formatCurrency(balance)} />
       </div>
 
-      <div className="mt-6 overflow-hidden rounded-2xl border border-slate-800">
-        <div className="border-b border-slate-800 bg-slate-950 px-5 py-4">
-          <h3 className="font-bold text-white">Transactions</h3>
+      <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200">
+        <div className="border-b border-slate-200 bg-slate-50 px-5 py-4">
+          <h3 className="font-bold text-slate-900">Transactions</h3>
         </div>
 
         {transactions.length === 0 ? (
@@ -1746,7 +1746,7 @@ function FinanceTab({
                 <button
                   type="button"
                   onClick={onAddTransaction}
-                  className="mt-4 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-500"
+                  className="mt-4 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-slate-900 hover:bg-blue-500"
                 >
                   Add First Transaction
                 </button>
@@ -1756,8 +1756,8 @@ function FinanceTab({
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-[900px] w-full text-left">
-              <thead className="bg-slate-950">
-                <tr className="border-b border-slate-800 text-xs uppercase tracking-wider text-slate-500">
+              <thead className="bg-slate-50">
+                <tr className="border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500">
                   <th className="px-5 py-4 font-semibold">Description</th>
                   <th className="px-5 py-4 font-semibold">Type</th>
                   <th className="px-5 py-4 font-semibold">Case</th>
@@ -1781,10 +1781,10 @@ function FinanceTab({
                   return (
                     <tr
                       key={transaction.id ?? index}
-                      className="bg-slate-900/30 transition hover:bg-slate-900"
+                      className="bg-white/30 transition hover:bg-white"
                     >
                       <td className="px-5 py-4">
-                        <p className="font-semibold text-white">
+                        <p className="font-semibold text-slate-900">
                           {transaction.description ||
                             transaction.title ||
                             "Financial transaction"}
@@ -1801,10 +1801,10 @@ function FinanceTab({
                         <TransactionBadge value={type} />
                       </td>
 
-                      <td className="px-5 py-4 text-sm text-slate-400">
+                      <td className="px-5 py-4 text-sm text-slate-500">
                         {transaction.case?.case_number ? (
                           <div>
-                            <p className="font-medium text-slate-300">
+                            <p className="font-medium text-slate-500">
                               {transaction.case.case_number}
                             </p>
                             <p className="mt-1 text-xs text-slate-500">
@@ -1816,7 +1816,7 @@ function FinanceTab({
                         )}
                       </td>
 
-                      <td className="px-5 py-4 text-sm text-slate-400">
+                      <td className="px-5 py-4 text-sm text-slate-500">
                         {formatDate(
                           transaction.transaction_date ||
                             transaction.date ||
@@ -1824,7 +1824,7 @@ function FinanceTab({
                         )}
                       </td>
 
-                      <td className="px-5 py-4 text-right font-semibold text-white">
+                      <td className="px-5 py-4 text-right font-semibold text-slate-900">
                         {formatCurrency(amount)}
                       </td>
                     </tr>
@@ -1858,15 +1858,15 @@ function ActivityTab({ activity }: { activity: ActivityItem[] }) {
           description="No activity has been recorded for this client yet."
         />
       ) : (
-        <div className="relative ml-3 border-l border-slate-800 pl-7">
+        <div className="relative ml-3 border-l border-slate-200 pl-7">
           <div className="space-y-8">
             {activity.map((item, index) => (
               <div key={item.id ?? index} className="relative">
                 <span className="absolute -left-[35px] top-1.5 h-3 w-3 rounded-full border-2 border-slate-950 bg-blue-500" />
 
-                <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-5">
+                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                    <h3 className="font-semibold text-white">
+                    <h3 className="font-semibold text-slate-900">
                       {item.title || item.action || item.event || "Activity"}
                     </h3>
 
@@ -1878,7 +1878,7 @@ function ActivityTab({ activity }: { activity: ActivityItem[] }) {
                   </div>
 
                   {item.description && (
-                    <p className="mt-2 text-sm leading-6 text-slate-400">
+                    <p className="mt-2 text-sm leading-6 text-slate-500">
                       {item.description}
                     </p>
                   )}
@@ -1900,8 +1900,8 @@ function PreviewCases({ cases }: { cases: CaseItem[] }) {
   const preview = cases.slice(0, 4);
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-5">
-      <h3 className="font-bold text-white">Recent Cases</h3>
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <h3 className="font-bold text-slate-900">Recent Cases</h3>
 
       <p className="mt-1 text-xs text-slate-500">
         Latest cases associated with the client.
@@ -1914,10 +1914,10 @@ function PreviewCases({ cases }: { cases: CaseItem[] }) {
           preview.map((item, index) => (
             <div
               key={item.id ?? index}
-              className="flex items-center justify-between gap-4 rounded-xl border border-slate-800 bg-slate-900/60 p-4"
+              className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4"
             >
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-white">
+                <p className="text-sm font-semibold text-slate-900">
                   {item.case_number || `Case #${item.id ?? index + 1}`}
                 </p>
 
@@ -1939,8 +1939,8 @@ function PreviewHearings({ hearings }: { hearings: HearingItem[] }) {
   const preview = hearings.slice(0, 4);
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-5">
-      <h3 className="font-bold text-white">Upcoming Hearings</h3>
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <h3 className="font-bold text-slate-900">Upcoming Hearings</h3>
 
       <p className="mt-1 text-xs text-slate-500">
         Scheduled hearings and court events.
@@ -1957,16 +1957,16 @@ function PreviewHearings({ hearings }: { hearings: HearingItem[] }) {
             return (
               <div
                 key={hearing.id ?? index}
-                className="flex items-center gap-4 rounded-xl border border-slate-800 bg-slate-900/60 p-4"
+                className="flex items-center gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4"
               >
-                <div className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-lg border border-slate-700 bg-slate-950">
+                <div className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-lg border border-slate-300 bg-slate-50">
                   {date ? (
                     <>
                       <span className="text-[9px] font-bold uppercase text-blue-400">
                         {formatMonth(date)}
                       </span>
 
-                      <span className="text-sm font-bold text-white">
+                      <span className="text-sm font-bold text-slate-900">
                         {formatDay(date)}
                       </span>
                     </>
@@ -1978,7 +1978,7 @@ function PreviewHearings({ hearings }: { hearings: HearingItem[] }) {
                 </div>
 
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-white">
+                  <p className="truncate text-sm font-semibold text-slate-900">
                     {hearing.purpose || hearing.type || "Court Hearing"}
                   </p>
 
@@ -1999,8 +1999,8 @@ function PreviewTasks({ tasks }: { tasks: TaskItem[] }) {
   const preview = tasks.slice(0, 4);
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-5">
-      <h3 className="font-bold text-white">Open Tasks</h3>
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <h3 className="font-bold text-slate-900">Open Tasks</h3>
 
       <p className="mt-1 text-xs text-slate-500">Tasks requiring attention.</p>
 
@@ -2011,10 +2011,10 @@ function PreviewTasks({ tasks }: { tasks: TaskItem[] }) {
           preview.map((task, index) => (
             <div
               key={task.id ?? index}
-              className="rounded-xl border border-slate-800 bg-slate-900/60 p-4"
+              className="rounded-xl border border-slate-200 bg-slate-50 p-4"
             >
               <div className="flex items-start justify-between gap-3">
-                <p className="font-semibold text-white">
+                <p className="font-semibold text-slate-900">
                   {task.title || task.name || `Task #${task.id ?? index + 1}`}
                 </p>
 
@@ -2148,7 +2148,7 @@ function EditClientModal({
             />
 
             <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-300">
+              <label className="mb-2 block text-sm font-semibold text-slate-500">
                 Client Type
               </label>
 
@@ -2187,7 +2187,7 @@ function EditClientModal({
             />
 
             <div className="md:col-span-2">
-              <label className="mb-2 block text-sm font-semibold text-slate-300">
+              <label className="mb-2 block text-sm font-semibold text-slate-500">
                 Notes
               </label>
 
@@ -2271,7 +2271,7 @@ function CaseModal({
               Client
             </p>
 
-            <p className="mt-1 font-semibold text-white">
+            <p className="mt-1 font-semibold text-slate-900">
               This case will be associated with the selected client.
             </p>
           </div>
@@ -2294,7 +2294,7 @@ function CaseModal({
             />
 
             <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-300">
+              <label className="mb-2 block text-sm font-semibold text-slate-500">
                 Case Type
               </label>
 
@@ -2322,7 +2322,7 @@ function CaseModal({
 
             {editMode ? (
               <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-300">
+                <label className="mb-2 block text-sm font-semibold text-slate-500">
                   Status
                 </label>
 
@@ -2342,18 +2342,18 @@ function CaseModal({
               </div>
             ) : (
               <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-300">
+                <label className="mb-2 block text-sm font-semibold text-slate-500">
                   Initial Status
                 </label>
 
-                <div className="flex h-[43px] items-center rounded-xl border border-slate-700 bg-slate-900 px-3 text-sm text-slate-400">
+                <div className="flex h-[43px] items-center rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-500">
                   New
                 </div>
               </div>
             )}
 
             <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-300">
+              <label className="mb-2 block text-sm font-semibold text-slate-500">
                 Priority
               </label>
 
@@ -2422,7 +2422,7 @@ function CaseModal({
             />
 
             <div className="md:col-span-2">
-              <label className="mb-2 block text-sm font-semibold text-slate-300">
+              <label className="mb-2 block text-sm font-semibold text-slate-500">
                 Description / Notes
               </label>
 
@@ -2469,7 +2469,7 @@ function CaseModal({
                   />
                 </div>
 
-                <div className="mt-4 rounded-xl border border-slate-800 bg-slate-900/60 p-3">
+                <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
                   <p className="text-xs text-slate-500">
                     The expense will use the case opening date and appear in the
                     corresponding month in Finance.
@@ -2541,14 +2541,14 @@ function FinanceTransactionModal({
               Client
             </p>
 
-            <p className="mt-1 font-semibold text-white">
+            <p className="mt-1 font-semibold text-slate-900">
               Transaction will be recorded against this client.
             </p>
           </div>
 
           <div className="grid gap-5 md:grid-cols-2">
             <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-300">
+              <label className="mb-2 block text-sm font-semibold text-slate-500">
                 Transaction Type
               </label>
 
@@ -2567,7 +2567,7 @@ function FinanceTransactionModal({
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-300">
+              <label className="mb-2 block text-sm font-semibold text-slate-500">
                 Case
               </label>
 
@@ -2615,7 +2615,7 @@ function FinanceTransactionModal({
             </div>
 
             <div className="md:col-span-2">
-              <label className="mb-2 block text-sm font-semibold text-slate-300">
+              <label className="mb-2 block text-sm font-semibold text-slate-500">
                 Description
               </label>
 
@@ -2665,7 +2665,7 @@ function CaseDetailsModal({
         <button
           type="button"
           onClick={onEdit}
-          className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500"
+          className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-blue-500"
         >
           Edit Case
         </button>
@@ -2734,12 +2734,12 @@ function CaseDetailsModal({
         </div>
 
         {caseItem.description && (
-          <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-950/60 p-5">
+          <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/60 p-5">
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
               Description / Notes
             </p>
 
-            <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-300">
+            <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-500">
               {caseItem.description}
             </p>
           </div>
@@ -2754,14 +2754,14 @@ function CaseDetailsModal({
 ========================================================= */
 
 const darkInputClass =
-  "w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 disabled:cursor-not-allowed disabled:opacity-50";
+  "w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 disabled:cursor-not-allowed disabled:opacity-50";
 
 const darkTextareaClass =
-  "w-full resize-none rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10";
+  "w-full resize-none rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10";
 
 function LoadingState() {
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
+    <div className="min-h-screen bg-slate-50 text-slate-900">
       <Sidebar />
 
       <div className="lg:pl-64">
@@ -2771,7 +2771,7 @@ function LoadingState() {
           <div className="mx-auto max-w-[1600px] space-y-6">
             <div className="h-4 w-40 animate-pulse rounded bg-slate-800" />
 
-            <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex items-center gap-5">
                 <div className="h-16 w-16 animate-pulse rounded-2xl bg-slate-800" />
 
@@ -2786,12 +2786,12 @@ function LoadingState() {
               {Array.from({ length: 6 }).map((_, index) => (
                 <div
                   key={index}
-                  className="h-32 animate-pulse rounded-2xl border border-slate-800 bg-slate-900"
+                  className="h-32 animate-pulse rounded-2xl border border-slate-200 bg-white"
                 />
               ))}
             </div>
 
-            <div className="h-96 animate-pulse rounded-2xl border border-slate-800 bg-slate-900" />
+            <div className="h-96 animate-pulse rounded-2xl border border-slate-200 bg-white" />
           </div>
         </main>
       </div>
@@ -2811,19 +2811,19 @@ function MetricCard({
   icon: string;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 transition hover:border-slate-700 hover:bg-slate-900">
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:bg-white">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
             {label}
           </p>
 
-          <p className="mt-2 truncate text-2xl font-bold tracking-tight text-white">
+          <p className="mt-2 truncate text-2xl font-bold tracking-tight text-slate-900">
             {value}
           </p>
         </div>
 
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-700 bg-slate-950 text-xs font-bold text-blue-400">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-slate-50 text-xs font-bold text-blue-400">
           {icon}
         </div>
       </div>
@@ -2845,7 +2845,7 @@ function SectionHeading({
   return (
     <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div>
-        <h2 className="text-lg font-bold tracking-tight text-white">{title}</h2>
+        <h2 className="text-lg font-bold tracking-tight text-slate-900">{title}</h2>
 
         <p className="mt-1 text-sm text-slate-500">{description}</p>
       </div>
@@ -2861,11 +2861,11 @@ function InfoItem({ label, value }: { label: string; value?: string | null }) {
 
   return (
     <div className="min-w-0">
-      <p className="text-xs font-semibold uppercase tracking-wider text-slate-600">
+      <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
         {label}
       </p>
 
-      <p className="mt-1.5 break-words text-sm font-medium text-slate-300">
+      <p className="mt-1.5 break-words text-sm font-medium text-slate-500">
         {displayValue}
       </p>
     </div>
@@ -2880,22 +2880,22 @@ function SnapshotRow({
   value: string | number;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-slate-800 pb-3 last:border-0 last:pb-0">
+    <div className="flex items-center justify-between gap-4 border-b border-slate-200 pb-3 last:border-0 last:pb-0">
       <span className="text-sm text-slate-500">{label}</span>
 
-      <span className="font-semibold text-slate-200">{value}</span>
+      <span className="font-semibold text-slate-600">{value}</span>
     </div>
   );
 }
 
 function FinanceCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-5">
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
         {label}
       </p>
 
-      <p className="mt-2 text-2xl font-bold tracking-tight text-white">
+      <p className="mt-2 text-2xl font-bold tracking-tight text-slate-900">
         {value}
       </p>
     </div>
@@ -2914,12 +2914,12 @@ function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex min-h-56 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-700 bg-slate-950/40 px-6 text-center">
-      <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-slate-700 bg-slate-900 text-sm font-bold text-slate-400">
+    <div className="flex min-h-56 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white px-6 text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-slate-300 bg-white text-sm font-bold text-slate-500">
         {icon}
       </div>
 
-      <h3 className="mt-4 font-semibold text-white">{title}</h3>
+      <h3 className="mt-4 font-semibold text-slate-900">{title}</h3>
 
       <p className="mt-1 max-w-md text-sm text-slate-500">{description}</p>
 
@@ -2931,7 +2931,7 @@ function EmptyState({
 function StatusBadge({ value }: { value?: string | null }) {
   const normalized = String(value || "").toLowerCase();
 
-  let className = "border-slate-700 bg-slate-800 text-slate-300";
+  let className = "border-slate-300 bg-slate-800 text-slate-500";
 
   if (
     ["active", "approved", "completed", "closed", "paid"].includes(normalized)
@@ -2961,7 +2961,7 @@ function StatusBadge({ value }: { value?: string | null }) {
 function PriorityBadge({ value }: { value?: string | null }) {
   const normalized = String(value || "").toLowerCase();
 
-  let className = "border-slate-700 bg-slate-800 text-slate-300";
+  let className = "border-slate-300 bg-slate-800 text-slate-500";
 
   if (normalized === "urgent") {
     className = "border-red-500/20 bg-red-500/10 text-red-400";
@@ -2985,7 +2985,7 @@ function PriorityBadge({ value }: { value?: string | null }) {
 function TransactionBadge({ value }: { value: string }) {
   const normalized = value.toLowerCase();
 
-  let className = "border-slate-700 bg-slate-800 text-slate-300";
+  let className = "border-slate-300 bg-slate-800 text-slate-500";
 
   if (normalized.includes("invoice")) {
     className = "border-blue-500/20 bg-blue-500/10 text-blue-400";
@@ -3027,7 +3027,7 @@ function FormField({
 }) {
   return (
     <div>
-      <label className="mb-2 block text-sm font-semibold text-slate-300">
+      <label className="mb-2 block text-sm font-semibold text-slate-500">
         {label}
 
         {required && <span className="ml-1 text-blue-400">*</span>}
@@ -3064,13 +3064,13 @@ function ModalShell({
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/75 p-4 backdrop-blur-sm sm:p-6">
       <div
-        className={`mx-auto my-4 w-full overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-2xl ${
+        className={`mx-auto my-4 w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-xl ${
           wide ? "max-w-4xl" : "max-w-2xl"
         }`}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-slate-800 bg-slate-900 px-6 py-5">
+        <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-white px-6 py-5">
           <div className="min-w-0">
-            <h2 className="text-lg font-bold text-white">{title}</h2>
+            <h2 className="text-lg font-bold text-slate-900">{title}</h2>
 
             {description && (
               <p className="mt-1 text-sm text-slate-500">{description}</p>
@@ -3083,7 +3083,7 @@ function ModalShell({
             <button
               type="button"
               onClick={onClose}
-              className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-700 text-lg text-slate-400 transition hover:bg-slate-800 hover:text-white"
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 text-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
               aria-label="Close"
             >
               ×
@@ -3107,12 +3107,12 @@ function ModalFooter({
   submitLabel: string;
 }) {
   return (
-    <div className="flex flex-col-reverse gap-3 border-t border-slate-800 bg-slate-900/70 px-6 py-4 sm:flex-row sm:justify-end">
+    <div className="flex flex-col-reverse gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4 sm:flex-row sm:justify-end">
       <button
         type="button"
         onClick={onClose}
         disabled={saving}
-        className="rounded-xl border border-slate-700 bg-slate-900 px-5 py-2.5 text-sm font-semibold text-slate-300 transition hover:bg-slate-800 disabled:opacity-50"
+        className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-500 transition hover:bg-slate-100 disabled:opacity-50"
       >
         Cancel
       </button>
@@ -3120,7 +3120,7 @@ function ModalFooter({
       <button
         type="submit"
         disabled={saving}
-        className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+        className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {saving ? "Saving..." : submitLabel}
       </button>
@@ -3152,12 +3152,12 @@ function DarkInfoCard({
   value?: string | null;
 }) {
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
         {label}
       </p>
 
-      <p className="mt-2 break-words text-sm font-semibold text-slate-200">
+      <p className="mt-2 break-words text-sm font-semibold text-slate-600">
         {value && value !== "Not provided" ? value : "Not provided"}
       </p>
     </div>
