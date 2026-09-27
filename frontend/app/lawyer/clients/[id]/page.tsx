@@ -969,42 +969,36 @@ export default function ClientProfilePage() {
                 label="Total Cases"
                 value={statistics.total_cases ?? cases.length}
                 description="Cases associated with this client"
-                icon="C"
               />
 
               <MetricCard
                 label="Active Cases"
                 value={activeCases}
                 description="Currently active matters"
-                icon="A"
               />
 
               <MetricCard
                 label="Hearings"
                 value={statistics.total_hearings ?? hearings.length}
                 description="Court hearings and events"
-                icon="H"
               />
 
               <MetricCard
                 label="Documents"
                 value={statistics.total_documents ?? documents.length}
                 description="Client-related documents"
-                icon="D"
               />
 
               <MetricCard
                 label="Pending Tasks"
                 value={statistics.pending_tasks ?? tasks.length}
                 description="Tasks requiring attention"
-                icon="T"
               />
 
               <MetricCard
                 label="Balance"
                 value={formatCurrency(balance)}
                 description="Current financial balance"
-                icon="$"
               />
             </div>
 
@@ -2770,16 +2764,14 @@ function MetricCard({
   label,
   value,
   description,
-  icon,
 }: {
   label: string;
   value: string | number;
   description: string;
-  icon: string;
 }) {
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-sm transition hover:border-slate-300 hover:bg-slate-900">
-      <div className="flex items-start justify-between gap-3">
+      <div>
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
             {label}
@@ -2788,10 +2780,6 @@ function MetricCard({
           <p className="mt-2 truncate text-2xl font-bold tracking-tight text-white">
             {value}
           </p>
-        </div>
-
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-slate-950 text-xs font-bold text-blue-400">
-          {icon}
         </div>
       </div>
 
