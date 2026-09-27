@@ -4,8 +4,8 @@ from datetime import date
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
+from django.db import transaction
 from django.db.models import Q
-from django.db.models.deletion import ProtectedError
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_http_methods
@@ -325,19 +325,7 @@ def client_detail(request, client_id):
         user.is_superuser
         or user.role == "super_admin"
     ):
-        if user.role == "lawyer":
-            if not client.cases.filter(
-                assigned_lawyer=user,
-            ).exists():
-                if client.created_by_id != user.id:
-                    return JsonResponse(
-                        {
-                            "success": False,
-                            "message": "Client not found.",
-                        },
-                        status=404,
-                    )
-        elif client.created_by_id != user.id:
+        if user.role != "lawyer" and client.created_by_id != user.id:
             return JsonResponse(
                 {
                     "success": False,
@@ -410,27 +398,20 @@ def client_detail(request, client_id):
         )
 
     if request.method == "DELETE":
-        try:
+        # Client-owned legal records are configured with cascading
+        # relationships. Wrapping the deletion in one transaction means
+        # the client and all dependent records are removed together, or
+        # nothing is changed if the database rejects the operation.
+        with transaction.atomic():
             client.delete()
-        except ProtectedError:
-            return JsonResponse(
-                {
-                    "success": False,
-                    "message": (
-                        "This client cannot be deleted "
-                        "because they have related records "
-                        "such as documents or other protected "
-                        "legal records. Please remove or "
-                        "reassign those records first."
-                    ),
-                },
-                status=409,
-            )
 
         return JsonResponse(
             {
                 "success": True,
-                "message": "Client deleted successfully.",
+                "message": (
+                    "Client and all related client records "
+                    "were deleted successfully."
+                ),
             }
         )
 
