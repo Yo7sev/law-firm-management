@@ -14,4 +14,5 @@ urlpatterns = [ path("csrf/", api_views.csrf_token, name="csrf-token"),
                path("documents/", include("documents.api_urls")),
                path("tasks/", include("tasks.api_urls")),
                path("finance/", include("finance.api_urls")),
-               path("notifications/", include("notifications.urls")), ]
+               path("notifications/", include("notifications.urls")),
+               path("firms/", include("firms.api_urls")), ]

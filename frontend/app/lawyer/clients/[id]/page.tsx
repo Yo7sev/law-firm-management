@@ -745,9 +745,7 @@ export default function ClientProfilePage() {
       const data: unknown = await response.json();
 
       if (!response.ok || isApiFailure(data)) {
-        throw new Error(
-          getApiMessage(data) || "Unable to create the hearing.",
-        );
+        throw new Error(getApiMessage(data) || "Unable to create the hearing.");
       }
 
       setHearingSuccess("Hearing created successfully.");
@@ -1164,7 +1162,10 @@ export default function ClientProfilePage() {
                 )}
 
                 {activeTab === "hearings" && (
-                  <HearingsTab hearings={hearings} onNewHearing={openNewHearingModal} />
+                  <HearingsTab
+                    hearings={hearings}
+                    onNewHearing={openNewHearingModal}
+                  />
                 )}
 
                 {activeTab === "documents" && (
@@ -1499,8 +1500,12 @@ function CasesTab({
                     <span className="text-sm font-bold uppercase tracking-wider text-blue-400">
                       {caseItem.case_number}
                     </span>
-                    <StatusBadge value={caseItem.status_display || caseItem.status} />
-                    <PriorityBadge value={caseItem.priority_display || caseItem.priority} />
+                    <StatusBadge
+                      value={caseItem.status_display || caseItem.status}
+                    />
+                    <PriorityBadge
+                      value={caseItem.priority_display || caseItem.priority}
+                    />
                   </div>
                   <h3 className="mt-2 text-xl font-bold text-white hover:text-blue-400 sm:text-2xl">
                     {caseItem.title || "Untitled Case"}
@@ -1526,28 +1531,63 @@ function CasesTab({
               </div>
 
               <div className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                <DarkInfoCard label="Case Type" value={getCaseTypeName(caseItem) || "Not specified"} />
-                <DarkInfoCard label="Court" value={caseItem.court || "Not specified"} />
-                <DarkInfoCard label="Court Number" value={caseItem.court_number || "Not specified"} />
-                <DarkInfoCard label="Judge" value={caseItem.judge || "Not specified"} />
-                <DarkInfoCard label="Opening Date" value={formatDate(caseItem.opening_date)} />
-                <DarkInfoCard label="Closing Date" value={formatDate(caseItem.closing_date)} />
-                <DarkInfoCard label="Assigned Lawyer" value={getLawyerName(caseItem.assigned_lawyer)} />
-                <DarkInfoCard label="Created" value={formatDateTime(caseItem.created_at)} />
+                <DarkInfoCard
+                  label="Case Type"
+                  value={getCaseTypeName(caseItem) || "Not specified"}
+                />
+                <DarkInfoCard
+                  label="Court"
+                  value={caseItem.court || "Not specified"}
+                />
+                <DarkInfoCard
+                  label="Court Number"
+                  value={caseItem.court_number || "Not specified"}
+                />
+                <DarkInfoCard
+                  label="Judge"
+                  value={caseItem.judge || "Not specified"}
+                />
+                <DarkInfoCard
+                  label="Opening Date"
+                  value={formatDate(caseItem.opening_date)}
+                />
+                <DarkInfoCard
+                  label="Closing Date"
+                  value={formatDate(caseItem.closing_date)}
+                />
+                <DarkInfoCard
+                  label="Assigned Lawyer"
+                  value={getLawyerName(caseItem.assigned_lawyer)}
+                />
+                <DarkInfoCard
+                  label="Created"
+                  value={formatDateTime(caseItem.created_at)}
+                />
               </div>
 
               <div className="mt-5 grid gap-5 lg:grid-cols-2">
                 <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-5">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">Opposing Party</p>
-                  <p className="mt-2 text-sm font-semibold text-slate-200">{caseItem.opposing_party || "Not provided"}</p>
-                  <p className="mt-4 text-[11px] font-semibold uppercase tracking-wider text-slate-600">Opposing Lawyer</p>
-                  <p className="mt-2 text-sm font-semibold text-slate-200">{caseItem.opposing_lawyer || "Not provided"}</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">
+                    Opposing Party
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-slate-200">
+                    {caseItem.opposing_party || "Not provided"}
+                  </p>
+                  <p className="mt-4 text-[11px] font-semibold uppercase tracking-wider text-slate-600">
+                    Opposing Lawyer
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-slate-200">
+                    {caseItem.opposing_lawyer || "Not provided"}
+                  </p>
                 </div>
 
                 <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-5">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">Description</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">
+                    Description
+                  </p>
                   <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-300">
-                    {caseItem.description || "No description has been added for this case."}
+                    {caseItem.description ||
+                      "No description has been added for this case."}
                   </p>
                 </div>
               </div>
@@ -1858,7 +1898,18 @@ function HearingModal({
               label="Case"
               required
               value={form.case_id}
-              onChange={(value) => setForm((current) => ({ ...current, case_id: value }))}
+              onChange={(value) => {
+                const selectedCase = cases.find(
+                  (caseItem) => String(caseItem.id) === String(value),
+                );
+
+                setForm((current) => ({
+                  ...current,
+                  case_id: value,
+                  court: selectedCase?.court ?? "",
+                  judge: selectedCase?.judge ?? "",
+                }));
+              }}
             >
               <option value="">Select a case</option>
               {cases.map((caseItem) => (
@@ -1872,7 +1923,9 @@ function HearingModal({
               label="Purpose"
               required
               value={form.purpose}
-              onChange={(value) => setForm((current) => ({ ...current, purpose: value }))}
+              onChange={(value) =>
+                setForm((current) => ({ ...current, purpose: value }))
+              }
               placeholder="e.g. First hearing, appeal, review"
             />
 
@@ -1880,41 +1933,49 @@ function HearingModal({
               label="Hearing Date"
               type="date"
               value={form.hearing_date}
-              onChange={(value) => setForm((current) => ({ ...current, hearing_date: value }))}
+              onChange={(value) =>
+                setForm((current) => ({ ...current, hearing_date: value }))
+              }
             />
 
             <InputField
               label="Hearing Time"
               type="time"
               value={form.hearing_time}
-              onChange={(value) => setForm((current) => ({ ...current, hearing_time: value }))}
+              onChange={(value) =>
+                setForm((current) => ({ ...current, hearing_time: value }))
+              }
             />
 
             <InputField
               label="Court"
               value={form.court}
-              onChange={(value) => setForm((current) => ({ ...current, court: value }))}
-              placeholder="Court name"
+              onChange={() => {}}
+              readOnly
             />
 
             <InputField
               label="Judge"
               value={form.judge}
-              onChange={(value) => setForm((current) => ({ ...current, judge: value }))}
-              placeholder="Judge name"
+              onChange={() => {}}
+              readOnly
             />
 
             <TextAreaField
               label="Result"
               value={form.result}
-              onChange={(value) => setForm((current) => ({ ...current, result: value }))}
+              onChange={(value) =>
+                setForm((current) => ({ ...current, result: value }))
+              }
               placeholder="Leave empty if the hearing has not happened yet"
             />
 
             <TextAreaField
               label="Next Action"
               value={form.next_action}
-              onChange={(value) => setForm((current) => ({ ...current, next_action: value }))}
+              onChange={(value) =>
+                setForm((current) => ({ ...current, next_action: value }))
+              }
               placeholder="What needs to happen next?"
             />
 
@@ -1922,7 +1983,9 @@ function HearingModal({
               <TextAreaField
                 label="Notes"
                 value={form.notes}
-                onChange={(value) => setForm((current) => ({ ...current, notes: value }))}
+                onChange={(value) =>
+                  setForm((current) => ({ ...current, notes: value }))
+                }
                 placeholder="Additional hearing notes"
               />
             </div>
@@ -4074,7 +4137,8 @@ function normalizeActivity(value: unknown): ActivityItem | null {
     timestamp: getString(record.timestamp),
     date: getString(record.date),
   };
-}function SelectField({
+}
+function SelectField({
   label,
   value,
   onChange,
@@ -4090,7 +4154,8 @@ function normalizeActivity(value: unknown): ActivityItem | null {
   return (
     <div>
       <label className="mb-2 block text-sm font-semibold text-slate-300">
-        {label}{required && <span className="ml-1 text-blue-400">*</span>}
+        {label}
+        {required && <span className="ml-1 text-blue-400">*</span>}
       </label>
       <select
         value={value}
@@ -4116,7 +4181,9 @@ function TextAreaField({
 }) {
   return (
     <div>
-      <label className="mb-2 block text-sm font-semibold text-slate-300">{label}</label>
+      <label className="mb-2 block text-sm font-semibold text-slate-300">
+        {label}
+      </label>
       <textarea
         value={value}
         onChange={(event) => onChange(event.target.value)}
@@ -4127,5 +4194,38 @@ function TextAreaField({
     </div>
   );
 }
+function InputField({
+  label,
+  required = false,
+  value,
+  onChange,
+  type = "text",
+  placeholder,
+  readOnly = false,
+}: {
+  label: string;
+  required?: boolean;
+  value: string;
+  onChange: (value: string) => void;
+  type?: string;
+  placeholder?: string;
+  readOnly?: boolean;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-sm font-medium text-slate-300">
+        {label}
+        {required && <span className="ml-1 text-red-400">*</span>}
+      </span>
 
-
+      <input
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        readOnly={readOnly}
+        className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-blue-500"
+      />
+    </label>
+  );
+}

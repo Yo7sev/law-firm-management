@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     "finance",
     "documents",
     "tasks",
+    "firms",
     "staff",
     "audit",
     "notifications",

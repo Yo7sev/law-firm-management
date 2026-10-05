@@ -36,23 +36,37 @@ def can_manage_hearings(user):
     if membership is None:
         return False
 
-    return membership.status == FirmMembership.Status.ACTIVE and membership.role in {
-        FirmMembership.Role.OWNER,
-        FirmMembership.Role.LAWYER,
-        FirmMembership.Role.SECRETARY,
-    }
+    return (
+        membership.status == FirmMembership.Status.ACTIVE
+        and membership.role
+        in {
+            FirmMembership.Role.OWNER,
+            FirmMembership.Role.LAWYER,
+            FirmMembership.Role.SECRETARY,
+        }
+    )
+
+
+def case_belongs_to_firm(case, firm):
+    if case is None or firm is None:
+        return False
+
+    return case.client.created_by.firm_memberships.filter(
+        firm=firm,
+        status=FirmMembership.Status.ACTIVE,
+    ).exists()
 
 
 def get_visible_hearings(user):
-    if user.is_superuser or user.role == "super_admin":
-        return Hearing.objects.all()
-
     firm = get_active_firm(user)
 
     if firm is None:
         return Hearing.objects.none()
 
-    return Hearing.objects.filter(case__firm=firm)
+    return Hearing.objects.filter(
+        case__client__created_by__firm_memberships__firm=firm,
+        case__client__created_by__firm_memberships__status=FirmMembership.Status.ACTIVE,
+    ).distinct()
 
 
 def serialize_hearing(hearing):
@@ -62,6 +76,8 @@ def serialize_hearing(hearing):
             "id": hearing.case.id,
             "case_number": hearing.case.case_number,
             "title": hearing.case.title,
+            "court": hearing.case.court,
+            "judge": hearing.case.judge,
         },
         "case_id": hearing.case_id,
         "client": {
@@ -94,24 +110,13 @@ def validate_hearing_data(data, existing_hearing=None):
 
     case_id = data.get(
         "case_id",
-        existing_hearing.case_id
-        if existing_hearing
-        else None,
+        existing_hearing.case_id if existing_hearing else None,
     )
 
     # ---------------------------------------------------------
     # HEARING DATE
     # ---------------------------------------------------------
-    #
-    # Date is optional.
-    #
-    # On create:
-    #   missing / empty / null -> None
-    #
-    # On update:
-    #   missing -> keep existing date
-    #   empty / null -> clear existing date
-    #
+
     if existing_hearing and "hearing_date" not in data:
         hearing_date = (
             existing_hearing.hearing_date.isoformat()
@@ -121,10 +126,7 @@ def validate_hearing_data(data, existing_hearing=None):
     else:
         raw_hearing_date = data.get("hearing_date")
 
-        if raw_hearing_date in [
-            None,
-            "",
-        ]:
+        if raw_hearing_date in [None, ""]:
             hearing_date = None
         else:
             hearing_date = str(raw_hearing_date).strip()
@@ -132,9 +134,7 @@ def validate_hearing_data(data, existing_hearing=None):
     # ---------------------------------------------------------
     # HEARING TIME
     # ---------------------------------------------------------
-    #
-    # Time is optional.
-    #
+
     if existing_hearing and "hearing_time" not in data:
         hearing_time = (
             existing_hearing.hearing_time.strftime("%H:%M")
@@ -144,10 +144,7 @@ def validate_hearing_data(data, existing_hearing=None):
     else:
         hearing_time = data.get("hearing_time")
 
-        if hearing_time in [
-            None,
-            "",
-        ]:
+        if hearing_time in [None, ""]:
             hearing_time = None
         else:
             hearing_time = str(hearing_time).strip()
@@ -159,9 +156,7 @@ def validate_hearing_data(data, existing_hearing=None):
     purpose = str(
         data.get(
             "purpose",
-            existing_hearing.purpose
-            if existing_hearing
-            else "",
+            existing_hearing.purpose if existing_hearing else "",
         )
     ).strip()
 
@@ -183,19 +178,19 @@ def validate_hearing_data(data, existing_hearing=None):
 
     if case_id:
         try:
-            case = Case.objects.select_related(
-                "client",
-            ).get(
-                pk=case_id,
+            case = (
+                Case.objects.select_related(
+                    "client",
+                    "client__created_by",
+                )
+                .get(pk=case_id)
             )
         except (
             Case.DoesNotExist,
             ValueError,
             TypeError,
         ):
-            errors["case_id"] = (
-                "Selected case does not exist."
-            )
+            errors["case_id"] = "Selected case does not exist."
 
     # ---------------------------------------------------------
     # DATE VALIDATION
@@ -248,27 +243,21 @@ def validate_hearing_data(data, existing_hearing=None):
     court = str(
         data.get(
             "court",
-            existing_hearing.court
-            if existing_hearing
-            else "",
+            existing_hearing.court if existing_hearing else "",
         )
     ).strip()
 
     judge = str(
         data.get(
             "judge",
-            existing_hearing.judge
-            if existing_hearing
-            else "",
+            existing_hearing.judge if existing_hearing else "",
         )
     ).strip()
 
     result = str(
         data.get(
             "result",
-            existing_hearing.result
-            if existing_hearing
-            else "",
+            existing_hearing.result if existing_hearing else "",
         )
     ).strip()
 
@@ -284,9 +273,7 @@ def validate_hearing_data(data, existing_hearing=None):
     notes = str(
         data.get(
             "notes",
-            existing_hearing.notes
-            if existing_hearing
-            else "",
+            existing_hearing.notes if existing_hearing else "",
         )
     ).strip()
 
@@ -314,6 +301,7 @@ def hearings_list(request):
         .select_related(
             "case",
             "case__client",
+            "case__client__created_by",
             "case__assigned_lawyer",
         )
     )
@@ -383,9 +371,6 @@ def hearings_list(request):
     # ---------------------------------------------------------
     # UPCOMING
     # ---------------------------------------------------------
-    #
-    # Hearings without a date are not considered upcoming.
-    #
 
     if upcoming in [
         "1",
@@ -455,7 +440,13 @@ def hearings_list_create(request):
             status=403,
         )
 
-    if validated["case"] is not None and validated["case"].firm_id != active_firm.id:
+    if (
+        validated["case"] is not None
+        and not case_belongs_to_firm(
+            validated["case"],
+            active_firm,
+        )
+    ):
         return JsonResponse(
             {
                 "success": False,
@@ -468,9 +459,7 @@ def hearings_list_create(request):
         return JsonResponse(
             {
                 "success": False,
-                "message": (
-                    "Please correct the submitted data."
-                ),
+                "message": "Please correct the submitted data.",
                 "errors": validated["errors"],
             },
             status=400,
@@ -492,21 +481,17 @@ def hearings_list_create(request):
         Hearing.objects.select_related(
             "case",
             "case__client",
+            "case__client__created_by",
             "case__assigned_lawyer",
-        ).get(
-            pk=hearing.pk,
         )
+        .get(pk=hearing.pk)
     )
 
     return JsonResponse(
         {
             "success": True,
-            "message": (
-                "Hearing created successfully."
-            ),
-            "hearing": serialize_hearing(
-                hearing,
-            ),
+            "message": "Hearing created successfully.",
+            "hearing": serialize_hearing(hearing),
         },
         status=201,
     )
@@ -530,11 +515,10 @@ def hearing_detail(request, hearing_id):
             .select_related(
                 "case",
                 "case__client",
+                "case__client__created_by",
                 "case__assigned_lawyer",
             )
-            .get(
-                pk=hearing_id,
-            )
+            .get(pk=hearing_id)
         )
     except Hearing.DoesNotExist:
         return JsonResponse(
@@ -553,9 +537,7 @@ def hearing_detail(request, hearing_id):
         return JsonResponse(
             {
                 "success": True,
-                "hearing": serialize_hearing(
-                    hearing,
-                ),
+                "hearing": serialize_hearing(hearing),
             }
         )
 
@@ -585,9 +567,7 @@ def hearing_detail(request, hearing_id):
         return JsonResponse(
             {
                 "success": True,
-                "message": (
-                    "Hearing deleted successfully."
-                ),
+                "message": "Hearing deleted successfully.",
             }
         )
 
@@ -624,7 +604,13 @@ def hearing_detail(request, hearing_id):
             status=403,
         )
 
-    if validated["case"] is not None and validated["case"].firm_id != active_firm.id:
+    if (
+        validated["case"] is not None
+        and not case_belongs_to_firm(
+            validated["case"],
+            active_firm,
+        )
+    ):
         return JsonResponse(
             {
                 "success": False,
@@ -637,20 +623,15 @@ def hearing_detail(request, hearing_id):
         return JsonResponse(
             {
                 "success": False,
-                "message": (
-                    "Please correct the submitted data."
-                ),
+                "message": "Please correct the submitted data.",
                 "errors": validated["errors"],
             },
             status=400,
         )
 
     hearing.case = validated["case"]
-
     hearing.hearing_date = validated["hearing_date"]
-
     hearing.hearing_time = validated["hearing_time"]
-
     hearing.court = validated["court"]
     hearing.judge = validated["judge"]
     hearing.purpose = validated["purpose"]
@@ -664,20 +645,16 @@ def hearing_detail(request, hearing_id):
         Hearing.objects.select_related(
             "case",
             "case__client",
+            "case__client__created_by",
             "case__assigned_lawyer",
-        ).get(
-            pk=hearing.pk,
         )
+        .get(pk=hearing.pk)
     )
 
     return JsonResponse(
         {
             "success": True,
-            "message": (
-                "Hearing updated successfully."
-            ),
-            "hearing": serialize_hearing(
-                hearing,
-            ),
+            "message": "Hearing updated successfully.",
+            "hearing": serialize_hearing(hearing),
         }
     )
