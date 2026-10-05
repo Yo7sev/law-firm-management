@@ -174,6 +174,7 @@ def login_view(request):
     )
 
 
+@csrf_exempt
 @require_POST
 def logout_view(request):
     logout(request)

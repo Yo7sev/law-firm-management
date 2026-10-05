@@ -1,7 +1,6 @@
 import json
 import secrets
 from datetime import timedelta
-import token
 
 from django.contrib.auth.decorators import login_required
 from django.core.mail import send_mail
@@ -422,13 +421,11 @@ def invitations_view(request):
 
 @require_GET
 def invitation_details_view(request, token):
-    
     invitation = get_pending_invitation(
         token=token,
     )
 
     if invitation is None:
-        print("INVITATION NOT FOUND")
         return JsonResponse(
             {
                 "success": False,
@@ -436,8 +433,6 @@ def invitation_details_view(request, token):
             },
             status=404,
         )
-
-    print("INVITATION FOUND:", invitation.id)
 
     return JsonResponse(
         {
@@ -455,7 +450,9 @@ def invitation_details_view(request, token):
 
 @require_GET
 def start_google_invitation_view(request, token):
-    invitation = get_pending_invitation(token=token)
+    invitation = get_pending_invitation(
+        token=token,
+    )
 
     if invitation is None:
         return JsonResponse(

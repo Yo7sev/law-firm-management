@@ -18,6 +18,22 @@ type MeResponse = {
   authenticated: boolean;
   user: User | null;
 };
+type FirmMembership = {
+  id: number;
+  role: string;
+  role_display: string;
+  status: string;
+};
+
+type CurrentFirmResponse = {
+  success: boolean;
+  firm: {
+    id: number;
+    name: string;
+  } | null;
+  membership: FirmMembership | null;
+  message?: string;
+};
 
 type DashboardStatistics = {
   active_cases: number;
@@ -265,6 +281,7 @@ export default function LawyerDashboard() {
   const notificationRef = useRef<HTMLDivElement | null>(null);
 
   const [user, setUser] = useState<User | null>(null);
+  const [membership, setMembership] = useState<FirmMembership | null>(null);
 
   const [dashboard, setDashboard] = useState<
     DashboardResponse["dashboard"] | null
@@ -358,6 +375,21 @@ export default function LawyerDashboard() {
         }
 
         setUser(meData.user);
+
+        const firmResponse = await fetch("/api/auth/firms/current", {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        });
+
+        if (firmResponse.ok) {
+          const firmData: CurrentFirmResponse = await firmResponse.json();
+
+          if (firmData.success) {
+            setMembership(firmData.membership);
+          }
+        }
+
         loadNotifications();
 
         const dashboardResponse = await fetch("/api/auth/dashboard", {
@@ -646,12 +678,14 @@ export default function LawyerDashboard() {
                 >
                   Finance
                 </Link>
-                <Link
-                  href="/lawyer/firm"
-                  className="block rounded-lg px-3 py-2.5 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
-                >
-                  Firm Management
-                </Link>
+                {membership?.role === "owner" && (
+                  <Link
+                    href="/lawyer/firm"
+                    className="block rounded-lg px-3 py-2.5 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
+                  >
+                    Firm Management
+                  </Link>
+                )}
               </div>
             </nav>
 

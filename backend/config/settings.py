@@ -303,3 +303,4 @@ SUPABASE_STORAGE_BUCKET = os.getenv(
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+SOCIALACCOUNT_LOGIN_ON_GET = True

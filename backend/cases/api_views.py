@@ -1,45 +1,77 @@
+import json
 
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods
-import json
 
 from clients.models import Client
+from firms.models import FirmMembership
 
 from .models import Case, CaseType
 
 
-def can_manage_cases(user):
+def get_active_membership(user):
+    if user.is_superuser:
+        return None
+
     return (
-        user.is_superuser
-        or user.role in [
-            "super_admin",
-            "lawyer",
-            "legal_assistant",
-        ]
+        FirmMembership.objects
+        .select_related("firm")
+        .filter(
+            user=user,
+            status=FirmMembership.Status.ACTIVE,
+        )
+        .first()
     )
+
+
+def get_active_firm(user):
+    membership = get_active_membership(user)
+
+    if membership:
+        return membership.firm
+
+    return None
+
+
+def can_manage_cases(user):
+    if user.is_superuser or user.role == "super_admin":
+        return True
+
+    membership = get_active_membership(user)
+
+    if not membership:
+        return False
+
+    return membership.role in [
+        FirmMembership.Role.OWNER,
+        FirmMembership.Role.LAWYER,
+        FirmMembership.Role.SECRETARY,
+    ]
 
 
 def get_visible_cases(user):
     if user.is_superuser or user.role == "super_admin":
         return Case.objects.all()
 
-    if user.role == "lawyer":
-        return Case.objects.filter(
-            assigned_lawyer=user,
-        )
+    active_firm = get_active_firm(user)
 
-    if user.role == "legal_assistant":
-        return Case.objects.all()
+    if not active_firm:
+        return Case.objects.none()
 
-    return Case.objects.all()
+    # Every active member of the firm can see the firm's cases.
+    # Visibility is no longer limited to the assigned lawyer.
+    return Case.objects.filter(
+        firm=active_firm,
+    )
 
 
 def serialize_case(case):
     return {
         "id": case.id,
+        "firm_id": case.firm_id,
         "case_number": case.case_number,
         "title": case.title,
         "client": {
@@ -83,12 +115,24 @@ def serialize_case(case):
             else None
         ),
         "assigned_lawyer_id": case.assigned_lawyer_id,
+        "created_by": (
+            {
+                "id": case.created_by.id,
+                "email": case.created_by.email,
+            }
+            if case.created_by
+            else None
+        ),
         "created_at": case.created_at.isoformat(),
         "updated_at": case.updated_at.isoformat(),
     }
 
 
-def validate_case_data(data, existing_case=None):
+def validate_case_data(
+    data,
+    existing_case=None,
+    active_firm=None,
+):
     errors = {}
 
     case_number = str(
@@ -156,15 +200,29 @@ def validate_case_data(data, existing_case=None):
 
     if client_id:
         try:
-            client = Client.objects.get(pk=client_id)
+            client_queryset = Client.objects.all()
+
+            if active_firm:
+                client_queryset = client_queryset.filter(
+                    firm=active_firm,
+                )
+
+            client = client_queryset.get(
+                pk=client_id,
+            )
+
         except (
             Client.DoesNotExist,
             ValueError,
             TypeError,
         ):
-            errors["client_id"] = "Selected client does not exist."
+            errors["client_id"] = (
+                "Selected client does not exist "
+                "in your firm."
+            )
 
     case_type = None
+
     case_type_id = data.get(
         "case_type_id",
         existing_case.case_type_id
@@ -289,6 +347,55 @@ def validate_case_data(data, existing_case=None):
     }
 
 
+def validate_assigned_lawyer(
+    assigned_lawyer_id,
+    active_firm,
+):
+    if assigned_lawyer_id in [
+        None,
+        "",
+        0,
+        "0",
+    ]:
+        return None
+
+    try:
+        membership = (
+            FirmMembership.objects
+            .filter(
+                user_id=assigned_lawyer_id,
+                firm=active_firm,
+                status=FirmMembership.Status.ACTIVE,
+            )
+            .first()
+        )
+    except (ValueError, TypeError):
+        membership = None
+
+    if not membership:
+        return {
+            "error": (
+                "The selected lawyer is not "
+                "an active member of this firm."
+            )
+        }
+
+    if membership.role not in [
+        FirmMembership.Role.OWNER,
+        FirmMembership.Role.LAWYER,
+    ]:
+        return {
+            "error": (
+                "Cases can only be assigned "
+                "to lawyers."
+            )
+        }
+
+    return {
+        "user_id": int(assigned_lawyer_id),
+    }
+
+
 @login_required
 @require_GET
 def case_types_list(request):
@@ -317,11 +424,30 @@ def case_types_list(request):
 def cases_list_create(request):
     user = request.user
 
+    if user.is_superuser or user.role == "super_admin":
+        active_firm = None
+    else:
+        active_firm = get_active_firm(user)
+
+        if not active_firm:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": (
+                        "You are not a member of "
+                        "an active firm."
+                    ),
+                },
+                status=403,
+            )
+
     if request.method == "GET":
         cases = get_visible_cases(user).select_related(
+            "firm",
             "client",
             "case_type",
             "assigned_lawyer",
+            "created_by",
         )
 
         search = request.GET.get(
@@ -379,6 +505,10 @@ def cases_list_create(request):
                 client_id=client_id,
             )
 
+        cases = cases.order_by(
+            "-created_at",
+        )
+
         return JsonResponse(
             {
                 "success": True,
@@ -402,6 +532,20 @@ def cases_list_create(request):
             status=403,
         )
 
+    active_firm = get_active_firm(user)
+
+    if not active_firm:
+        return JsonResponse(
+            {
+                "success": False,
+                "message": (
+                    "You are not a member of "
+                    "an active firm."
+                ),
+            },
+            status=403,
+        )
+
     try:
         data = json.loads(
             request.body or "{}",
@@ -415,7 +559,10 @@ def cases_list_create(request):
             status=400,
         )
 
-    validated = validate_case_data(data)
+    validated = validate_case_data(
+        data,
+        active_firm=active_firm,
+    )
 
     if validated["errors"]:
         return JsonResponse(
@@ -427,9 +574,9 @@ def cases_list_create(request):
             status=400,
         )
 
-    assigned_lawyer_id = (
-        validated["assigned_lawyer_id"]
-    )
+    assigned_lawyer_id = validated[
+        "assigned_lawyer_id"
+    ]
 
     if assigned_lawyer_id in [
         None,
@@ -437,13 +584,37 @@ def cases_list_create(request):
         0,
         "0",
     ]:
-        assigned_lawyer_id = (
-            user.id
-            if user.role == "lawyer"
-            else None
+        # If a lawyer creates a case without selecting
+        # another lawyer, assign it to themselves.
+        membership = get_active_membership(user)
+
+        if membership and membership.role in [
+            FirmMembership.Role.OWNER,
+            FirmMembership.Role.LAWYER,
+        ]:
+            assigned_lawyer_id = user.id
+        else:
+            assigned_lawyer_id = None
+    else:
+        assignment = validate_assigned_lawyer(
+            assigned_lawyer_id,
+            active_firm,
         )
 
+        if assignment and "error" in assignment:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": assignment["error"],
+                },
+                status=400,
+            )
+
+        assigned_lawyer_id = assignment["user_id"]
+
+    # Firm and creator are controlled by the backend.
     case = Case.objects.create(
+        firm=active_firm,
         client=validated["client"],
         case_number=validated["case_number"],
         title=validated["title"],
@@ -458,14 +629,19 @@ def cases_list_create(request):
         description=validated["description"],
         opening_date=validated["opening_date"],
         closing_date=validated["closing_date"] or None,
+        created_by=user,
         assigned_lawyer_id=assigned_lawyer_id,
     )
 
     case = Case.objects.select_related(
+        "firm",
         "client",
         "case_type",
         "assigned_lawyer",
-    ).get(pk=case.pk)
+        "created_by",
+    ).get(
+        pk=case.pk
+    )
 
     return JsonResponse(
         {
@@ -487,10 +663,14 @@ def case_detail(request, case_id):
 
     try:
         case = get_visible_cases(user).select_related(
+            "firm",
             "client",
             "case_type",
             "assigned_lawyer",
-        ).get(pk=case_id)
+            "created_by",
+        ).get(
+            pk=case_id
+        )
     except Case.DoesNotExist:
         return JsonResponse(
             {
@@ -556,9 +736,12 @@ def case_detail(request, case_id):
             status=400,
         )
 
+    active_firm = get_active_firm(user)
+
     validated = validate_case_data(
         data,
         existing_case=case,
+        active_firm=active_firm,
     )
 
     if validated["errors"]:
@@ -571,9 +754,9 @@ def case_detail(request, case_id):
             status=400,
         )
 
-    assigned_lawyer_id = (
-        validated["assigned_lawyer_id"]
-    )
+    assigned_lawyer_id = validated[
+        "assigned_lawyer_id"
+    ]
 
     if assigned_lawyer_id in [
         "",
@@ -581,6 +764,22 @@ def case_detail(request, case_id):
         "0",
     ]:
         assigned_lawyer_id = None
+    else:
+        assignment = validate_assigned_lawyer(
+            assigned_lawyer_id,
+            active_firm,
+        )
+
+        if assignment and "error" in assignment:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": assignment["error"],
+                },
+                status=400,
+            )
+
+        assigned_lawyer_id = assignment["user_id"]
 
     case.client = validated["client"]
     case.case_number = validated["case_number"]
@@ -604,10 +803,14 @@ def case_detail(request, case_id):
     case.save()
 
     case = Case.objects.select_related(
+        "firm",
         "client",
         "case_type",
         "assigned_lawyer",
-    ).get(pk=case.pk)
+        "created_by",
+    ).get(
+        pk=case.pk
+    )
 
     return JsonResponse(
         {
@@ -616,4 +819,3 @@ def case_detail(request, case_id):
             "case": serialize_case(case),
         }
     )
-

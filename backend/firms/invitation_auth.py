@@ -6,6 +6,9 @@ from django.views.decorators.http import require_GET, require_POST
 from .services import accept_invitation, get_pending_invitation
 
 
+FRONTEND_URL = "http://127.0.0.1:3000"
+
+
 @login_required
 @require_POST
 def accept_invitation_view(request, token):
@@ -24,7 +27,10 @@ def accept_invitation_view(request, token):
         return JsonResponse(
             {
                 "success": False,
-                "message": "The Google account you signed in with does not match the invitation email.",
+                "message": (
+                    "The Google account you signed in with "
+                    "does not match the invitation email."
+                ),
             },
             status=403,
         )
@@ -69,7 +75,7 @@ def accept_google_invitation_view(request):
     )
 
     if not token:
-        return redirect("http://localhost:3000/lawyer/")
+        return redirect(f"{FRONTEND_URL}/lawyer/")
 
     invitation = get_pending_invitation(token=token)
 
@@ -80,7 +86,7 @@ def accept_google_invitation_view(request):
         )
         request.session.save()
 
-        return redirect("http://localhost:3000/lawyer/")
+        return redirect(f"{FRONTEND_URL}/lawyer/")
 
     if (
         request.user.email.strip().lower()
@@ -117,32 +123,36 @@ def accept_google_invitation_view(request):
     )
     request.session.save()
 
-    return redirect("http://localhost:3000/lawyer/")
-
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import redirect
-
-from .services import accept_invitation, get_pending_invitation
+    return redirect(f"{FRONTEND_URL}/lawyer/")
 
 
 @login_required
 def complete_google_invitation(request):
-    token = request.session.get("pending_firm_invitation_token")
+    token = request.session.get(
+        "pending_firm_invitation_token"
+    )
 
     if not token:
-        return redirect("http://127.0.0.1:3000/lawyer/")
+        return redirect(f"{FRONTEND_URL}/lawyer/")
 
-    invitation = get_pending_invitation(token=token)
+    invitation = get_pending_invitation(
+        token=token
+    )
 
     if invitation is None:
-        request.session.pop("pending_firm_invitation_token", None)
-        request.session.save()
-        return redirect("http://127.0.0.1:3000/lawyer/")
-
-    if request.user.email.strip().lower() != invitation.email.strip().lower():
-        return redirect(
-            "http://127.0.0.1:3000/lawyer/"
+        request.session.pop(
+            "pending_firm_invitation_token",
+            None,
         )
+        request.session.save()
+
+        return redirect(f"{FRONTEND_URL}/lawyer/")
+
+    if (
+        request.user.email.strip().lower()
+        != invitation.email.strip().lower()
+    ):
+        return redirect(f"{FRONTEND_URL}/lawyer/")
 
     try:
         accept_invitation(
@@ -152,7 +162,10 @@ def complete_google_invitation(request):
     except ValueError:
         pass
 
-    request.session.pop("pending_firm_invitation_token", None)
+    request.session.pop(
+        "pending_firm_invitation_token",
+        None,
+    )
     request.session.save()
 
-    return redirect("http://127.0.0.1:3000/lawyer/")
+    return redirect(f"{FRONTEND_URL}/lawyer/")

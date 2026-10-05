@@ -10,7 +10,56 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_http_methods
 
+from firms.models import FirmMembership
+
 from .models import Client
+
+
+def get_active_membership(user):
+    if user.is_superuser:
+        return None
+
+    return (
+        FirmMembership.objects
+        .select_related("firm")
+        .filter(
+            user=user,
+            status=FirmMembership.Status.ACTIVE,
+        )
+        .first()
+    )
+
+
+def get_active_firm(user):
+    membership = get_active_membership(user)
+
+    if membership:
+        return membership.firm
+
+    return None
+
+
+def user_can_manage_clients(user):
+    if user.is_superuser or user.role == "super_admin":
+        return True
+
+    membership = get_active_membership(user)
+
+    if not membership:
+        return False
+
+    return membership.role in [
+        FirmMembership.Role.OWNER,
+        FirmMembership.Role.LAWYER,
+        FirmMembership.Role.SECRETARY,
+    ]
+
+
+def user_can_access_clients(user):
+    if user.is_superuser or user.role == "super_admin":
+        return True
+
+    return get_active_membership(user) is not None
 
 
 def parse_date_of_birth(value):
@@ -57,6 +106,7 @@ def serialize_client(client):
             client.date_of_birth
         ),
         "notes": client.notes,
+        "firm_id": client.firm_id,
         "created_by": {
             "id": client.created_by.id,
             "email": client.created_by.email,
@@ -67,24 +117,32 @@ def serialize_client(client):
     }
 
 
-def user_can_manage_clients(user):
-    return (
-        user.is_superuser
-        or user.role in [
-            "super_admin",
-            "lawyer",
-            "legal_assistant",
-        ]
-    )
-
-
 @login_required
 @require_http_methods(["GET", "POST"])
 def clients_list_create(request):
     user = request.user
 
+    # Super admins can work globally.
+    if user.is_superuser or user.role == "super_admin":
+        active_firm = None
+    else:
+        active_firm = get_active_firm(user)
+
+        if not active_firm:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": "You are not a member of an active firm.",
+                },
+                status=403,
+            )
+
     if request.method == "GET":
-        search = request.GET.get("search", "").strip()
+        search = request.GET.get(
+            "search",
+            "",
+        ).strip()
+
         client_type = request.GET.get(
             "client_type",
             "",
@@ -92,19 +150,13 @@ def clients_list_create(request):
 
         clients = Client.objects.select_related(
             "created_by",
+            "firm",
         )
 
-        if not (
-            user.is_superuser
-            or user.role == "super_admin"
-        ):
-            if user.role == "lawyer":
-                # Lawyers can see all clients in the firm.
-                clients = clients.all()
-            else:
-                clients = clients.filter(
-                    created_by=user,
-                )
+        if active_firm:
+            clients = clients.filter(
+                firm=active_firm,
+            )
 
         if search:
             clients = clients.filter(
@@ -148,8 +200,21 @@ def clients_list_create(request):
             status=403,
         )
 
+    active_firm = get_active_firm(user)
+
+    if not active_firm:
+        return JsonResponse(
+            {
+                "success": False,
+                "message": "You are not a member of an active firm.",
+            },
+            status=403,
+        )
+
     try:
-        data = json.loads(request.body or "{}")
+        data = json.loads(
+            request.body or "{}"
+        )
     except json.JSONDecodeError:
         return JsonResponse(
             {
@@ -243,10 +308,7 @@ def clients_list_create(request):
         date_of_birth_raw
     )
 
-    if (
-        date_of_birth_raw
-        and date_of_birth is None
-    ):
+    if date_of_birth_raw and date_of_birth is None:
         return JsonResponse(
             {
                 "success": False,
@@ -286,7 +348,10 @@ def clients_list_create(request):
                 status=400,
             )
 
+    # Firm and created_by are ALWAYS taken from the
+    # authenticated user. The frontend cannot choose them.
     client = Client.objects.create(
+        firm=active_firm,
         full_name=full_name,
         national_id=national_id,
         phone=phone,
@@ -314,42 +379,39 @@ def clients_list_create(request):
 def client_detail(request, client_id):
     user = request.user
 
-    client = get_object_or_404(
-        Client.objects.select_related(
-            "created_by",
-        ),
-        id=client_id,
-    )
+    if user.is_superuser or user.role == "super_admin":
+        client_queryset = Client.objects.all()
+    else:
+        active_firm = get_active_firm(user)
 
-    if not (
-        user.is_superuser
-        or user.role == "super_admin"
-    ):
-        if user.role != "lawyer" and client.created_by_id != user.id:
+        if not active_firm:
             return JsonResponse(
                 {
                     "success": False,
-                    "message": "Client not found.",
+                    "message": "You are not a member of an active firm.",
                 },
-                status=404,
+                status=403,
             )
+
+        client_queryset = Client.objects.filter(
+            firm=active_firm,
+        )
+
+    client = get_object_or_404(
+        client_queryset.select_related(
+            "created_by",
+            "firm",
+        ),
+        id=client_id,
+    )
 
     if request.method == "GET":
         cases = client.cases.select_related(
             "case_type",
             "assigned_lawyer",
+        ).order_by(
+            "-created_at"
         )
-
-        if not (
-            user.is_superuser
-            or user.role == "super_admin"
-        ):
-            if user.role == "lawyer":
-                cases = cases.filter(
-                    assigned_lawyer=user,
-                )
-            else:
-                cases = cases.none()
 
         return JsonResponse(
             {
@@ -398,10 +460,6 @@ def client_detail(request, client_id):
         )
 
     if request.method == "DELETE":
-        # Client-owned legal records are configured with cascading
-        # relationships. Wrapping the deletion in one transaction means
-        # the client and all dependent records are removed together, or
-        # nothing is changed if the database rejects the operation.
         with transaction.atomic():
             client.delete()
 
@@ -416,7 +474,9 @@ def client_detail(request, client_id):
         )
 
     try:
-        data = json.loads(request.body or "{}")
+        data = json.loads(
+            request.body or "{}"
+        )
     except json.JSONDecodeError:
         return JsonResponse(
             {
