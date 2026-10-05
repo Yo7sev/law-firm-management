@@ -19,12 +19,7 @@ def user_can_access_client(user, client):
         return True
 
     if user.role == "lawyer":
-        return (
-            client.created_by_id == user.id
-            or client.cases.filter(
-                assigned_lawyer_id=user.id,
-            ).exists()
-        )
+        return True
 
     if user.role == "legal_assistant":
         return client.created_by_id == user.id

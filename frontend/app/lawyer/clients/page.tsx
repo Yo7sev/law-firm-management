@@ -277,7 +277,7 @@ export default function ClientsPage() {
   }, [router]);
 
   const loadClients = useCallback(async () => {
-    const response = await fetch("/api/auth/clients/", {
+    const response = await fetch("/api/auth/clients", {
       method: "GET",
       credentials: "include",
       cache: "no-store",
@@ -306,7 +306,7 @@ export default function ClientsPage() {
 
     async function initializePage() {
       try {
-        const response = await fetch("/api/auth/clients/", {
+        const response = await fetch("/api/auth/clients", {
           method: "GET",
           credentials: "include",
           cache: "no-store",
@@ -449,7 +449,7 @@ export default function ClientsPage() {
 
       const url = editingClient
         ? `/api/auth/clients/${editingClient.id}/`
-        : "/api/auth/clients/";
+        : "/api/auth/clients";
 
       const response = await fetch(url, {
         method: editingClient ? "PUT" : "POST",

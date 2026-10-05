@@ -284,7 +284,7 @@ export default function LawyerDashboard() {
       setNotificationsLoading(true);
       setNotificationsError("");
 
-      const response = await fetch("/api/auth/notifications/", {
+      const response = await fetch("/api/auth/notifications", {
         method: "GET",
         credentials: "include",
         cache: "no-store",
@@ -329,7 +329,7 @@ export default function LawyerDashboard() {
         setLoading(true);
         setError("");
 
-        const meResponse = await fetch("/api/auth/me/", {
+        const meResponse = await fetch("/api/auth/me", {
           method: "GET",
           credentials: "include",
           cache: "no-store",
@@ -360,7 +360,7 @@ export default function LawyerDashboard() {
         setUser(meData.user);
         loadNotifications();
 
-        const dashboardResponse = await fetch("/api/auth/dashboard/", {
+        const dashboardResponse = await fetch("/api/auth/dashboard", {
           method: "GET",
           credentials: "include",
           cache: "no-store",
@@ -451,7 +451,7 @@ export default function LawyerDashboard() {
   async function markNotificationAsRead(notificationId: number) {
     try {
       const response = await fetch(
-        `/api/auth/notifications/${notificationId}/read/`,
+        `/api/auth/notifications${notificationId}/read/`,
         {
           method: "POST",
           credentials: "include",
@@ -491,7 +491,7 @@ export default function LawyerDashboard() {
     }
 
     try {
-      const response = await fetch("/api/auth/notifications/read-all/", {
+      const response = await fetch("/api/auth/notifications/read-all", {
         method: "POST",
         credentials: "include",
       });
@@ -645,6 +645,12 @@ export default function LawyerDashboard() {
                   className="block rounded-lg px-3 py-2.5 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
                 >
                   Finance
+                </Link>
+                <Link
+                  href="/lawyer/firm"
+                  className="block rounded-lg px-3 py-2.5 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
+                >
+                  Firm Management
                 </Link>
               </div>
             </nav>

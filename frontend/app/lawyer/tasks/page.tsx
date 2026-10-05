@@ -292,7 +292,7 @@ export default function LawyerTasksPage() {
 
   const loadCurrentUser = useCallback(async () => {
     try {
-      const response = await fetch("/api/auth/me/", {
+      const response = await fetch("/api/auth/me", {
         method: "GET",
         credentials: "include",
         cache: "no-store",
@@ -331,7 +331,7 @@ export default function LawyerTasksPage() {
     try {
       setLoadingCases(true);
 
-      const response = await fetch("/api/auth/cases/", {
+      const response = await fetch("/api/auth/cases", {
         method: "GET",
         credentials: "include",
         cache: "no-store",
@@ -523,7 +523,7 @@ export default function LawyerTasksPage() {
       setError("");
       setSuccessMessage("");
 
-      const response = await fetch("/api/auth/tasks/", {
+      const response = await fetch("/api/auth/tasks", {
         method: "POST",
         credentials: "include",
         headers: {

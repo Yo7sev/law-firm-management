@@ -48,6 +48,12 @@ class Client(models.Model):
         blank=True,
     )
 
+    firm = models.ForeignKey(
+    "firms.Firm",
+    on_delete=models.CASCADE,
+    related_name="clients",
+    )
+
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,

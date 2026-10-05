@@ -431,7 +431,7 @@ export default function ClientProfilePage() {
     setCaseTypesLoading(true);
 
     try {
-      const response = await fetch("/api/auth/cases/types/", {
+      const response = await fetch("/api/auth/cases/types", {
         credentials: "include",
         cache: "no-store",
       });
@@ -561,8 +561,8 @@ export default function ClientProfilePage() {
       };
 
       const endpoint = caseEditMode
-        ? `/api/auth/cases/${editingCaseId}/`
-        : "/api/auth/cases/";
+        ? `/api/auth/cases${editingCaseId}/`
+        : "/api/auth/cases";
 
       const response = await fetch(endpoint, {
         method: caseEditMode ? "PUT" : "POST",
@@ -697,7 +697,7 @@ export default function ClientProfilePage() {
     setFinanceSaving(true);
 
     try {
-      const response = await fetch("/api/auth/finance/transactions/", {
+      const response = await fetch("/api/auth/finance/transactions", {
         method: "POST",
         credentials: "include",
         headers: {
@@ -1246,8 +1246,6 @@ function OverviewTab({
             <InfoItem label="Created" value={formatDate(client.created_at)} />
           </div>
         </div>
-
-
       </div>
 
       {client.notes && (

@@ -241,7 +241,7 @@ export default function HearingsPage() {
 
   const loadCases = useCallback(async () => {
     try {
-      const response = await fetch("/api/auth/cases/", {
+      const response = await fetch("/api/auth/cases", {
         credentials: "include",
         cache: "no-store",
       });
@@ -290,7 +290,7 @@ export default function HearingsPage() {
       const query = params.toString();
 
       const response = await fetch(
-        `/api/auth/hearings/${query ? `?${query}` : ""}`,
+        `/api/auth/hearings${query ? `?${query}` : ""}`,
         {
           credentials: "include",
           cache: "no-store",
@@ -481,8 +481,8 @@ export default function HearingsPage() {
 
     try {
       const url = editingHearing
-        ? `/api/auth/hearings/${editingHearing.id}/`
-        : "/api/auth/hearings/";
+        ? `/api/auth/hearings${editingHearing.id}/`
+        : "/api/auth/hearings";
 
       const response = await fetch(url, {
         method: editingHearing ? "PUT" : "POST",
@@ -535,13 +535,10 @@ export default function HearingsPage() {
     setSuccess("");
 
     try {
-      const response = await fetch(
-        `/api/auth/hearings/${selectedHearing.id}/`,
-        {
-          method: "DELETE",
-          credentials: "include",
-        },
-      );
+      const response = await fetch(`/api/auth/hearings${selectedHearing.id}/`, {
+        method: "DELETE",
+        credentials: "include",
+      });
 
       const data = await response.json();
 

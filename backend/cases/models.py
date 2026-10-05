@@ -45,6 +45,12 @@ class Case(models.Model):
         HIGH = "high", "High"
         URGENT = "urgent", "Urgent"
 
+    firm = models.ForeignKey(
+    "firms.Firm",
+    on_delete=models.CASCADE,
+    related_name="cases",
+    )
+
     client = models.ForeignKey(
         "clients.Client",
         on_delete=models.CASCADE,
@@ -116,6 +122,12 @@ class Case(models.Model):
         blank=True,
     )
 
+    created_by = models.ForeignKey(
+    settings.AUTH_USER_MODEL,
+    on_delete=models.PROTECT,
+    related_name="created_cases",
+    )
+
     assigned_lawyer = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
@@ -141,6 +153,7 @@ class Case(models.Model):
             models.Index(fields=["priority"]),
             models.Index(fields=["opening_date"]),
             models.Index(fields=["client"]),
+            models.Index(fields=["firm"]),
         ]
 
     def __str__(self):

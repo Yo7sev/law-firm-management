@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 const DJANGO_BACKEND =
   process.env.DJANGO_BACKEND_URL || "http://127.0.0.1:8000";
 

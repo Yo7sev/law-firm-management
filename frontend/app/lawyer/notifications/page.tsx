@@ -357,7 +357,7 @@ export default function NotificationsPage() {
     try {
       setError("");
 
-      const response = await fetch("/api/auth/notifications/", {
+      const response = await fetch("/api/auth/notifications", {
         credentials: "include",
         cache: "no-store",
       });
@@ -390,7 +390,7 @@ export default function NotificationsPage() {
 
     const fetchNotifications = async () => {
       try {
-        const response = await fetch("/api/auth/notifications/", {
+        const response = await fetch("/api/auth/notifications", {
           credentials: "include",
           cache: "no-store",
         });
@@ -505,7 +505,7 @@ export default function NotificationsPage() {
     try {
       const csrfToken = await initializeCsrf();
 
-      const response = await fetch("/api/auth/notifications/read-all/", {
+      const response = await fetch("/api/auth/notifications/read-all", {
         method: "POST",
         credentials: "include",
         headers: {

@@ -197,7 +197,7 @@ export default function CasesPage() {
 
   const loadUser = useCallback(async () => {
     try {
-      const response = await fetch("/api/auth/me/", {
+      const response = await fetch("/api/auth/me", {
         credentials: "include",
         cache: "no-store",
       });
@@ -238,7 +238,7 @@ export default function CasesPage() {
       const query = params.toString();
 
       const response = await fetch(
-        `/api/auth/cases/${query ? `?${query}` : ""}`,
+        `/api/auth/cases${query ? `?${query}` : ""}`,
         {
           credentials: "include",
           cache: "no-store",
@@ -268,7 +268,7 @@ export default function CasesPage() {
 
   const loadClients = useCallback(async () => {
     try {
-      const response = await fetch("/api/auth/clients/", {
+      const response = await fetch("/api/auth/clients", {
         credentials: "include",
         cache: "no-store",
       });
@@ -296,7 +296,7 @@ export default function CasesPage() {
 
   const loadCaseTypes = useCallback(async () => {
     try {
-      const response = await fetch("/api/auth/cases/types/", {
+      const response = await fetch("/api/auth/cases/types", {
         credentials: "include",
         cache: "no-store",
       });
@@ -501,8 +501,8 @@ export default function CasesPage() {
 
     try {
       const url = editingCase
-        ? `/api/auth/cases/${editingCase.id}/`
-        : "/api/auth/cases/";
+        ? `/api/auth/cases${editingCase.id}/`
+        : "/api/auth/cases";
 
       const response = await fetch(url, {
         method: editingCase ? "PUT" : "POST",
@@ -561,7 +561,7 @@ export default function CasesPage() {
           );
         }
 
-        const expenseResponse = await fetch("/api/auth/finance/", {
+        const expenseResponse = await fetch("/api/auth/finance", {
           method: "POST",
           credentials: "include",
           headers: {
@@ -635,7 +635,7 @@ export default function CasesPage() {
     setSuccess("");
 
     try {
-      const response = await fetch(`/api/auth/cases/${selectedCase.id}/`, {
+      const response = await fetch(`/api/auth/cases${selectedCase.id}/`, {
         method: "DELETE",
         credentials: "include",
       });

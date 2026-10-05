@@ -90,7 +90,7 @@ export default function NotificationBell() {
 
   const loadUnreadCount = useCallback(async () => {
     try {
-      const response = await fetch("/api/auth/notifications/unread-count/", {
+      const response = await fetch("/api/auth/notifications/unread-count", {
         credentials: "include",
         cache: "no-store",
       });
@@ -111,7 +111,7 @@ export default function NotificationBell() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/auth/notifications/", {
+      const response = await fetch("/api/auth/notifications", {
         credentials: "include",
         cache: "no-store",
       });
@@ -135,7 +135,7 @@ export default function NotificationBell() {
 
     const fetchInitialUnreadCount = async () => {
       try {
-        const response = await fetch("/api/auth/notifications/unread-count/", {
+        const response = await fetch("/api/auth/notifications/unread-count", {
           credentials: "include",
           cache: "no-store",
         });

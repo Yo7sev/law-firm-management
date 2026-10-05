@@ -303,10 +303,10 @@ export default function FinancePage() {
   const loadInitialData = useCallback(async () => {
     try {
       const [clientsResponse, casesResponse] = await Promise.all([
-        fetch("/api/auth/finance/clients/", {
+        fetch("/api/auth/finance/clients", {
           credentials: "include",
         }),
-        fetch("/api/auth/finance/cases/", {
+        fetch("/api/auth/finance/cases", {
           credentials: "include",
         }),
       ]);
@@ -358,7 +358,7 @@ export default function FinancePage() {
       const query = params.toString();
 
       const response = await fetch(
-        `/api/auth/finance/${query ? `?${query}` : ""}`,
+        `/api/auth/finance${query ? `?${query}` : ""}`,
         {
           credentials: "include",
           cache: "no-store",
@@ -504,8 +504,8 @@ export default function FinancePage() {
       };
 
       const url = editingTransaction
-        ? `/api/auth/finance/${editingTransaction.id}/`
-        : "/api/auth/finance/";
+        ? `/api/auth/finance${editingTransaction.id}/`
+        : "/api/auth/finance";
 
       const response = await fetch(url, {
         method: editingTransaction ? "PUT" : "POST",

@@ -332,7 +332,7 @@ export default function LawyerDocumentsPage() {
       const queryString = params.toString();
 
       const response = await fetch(
-        `/api/auth/documents/${queryString ? `?${queryString}` : ""}`,
+        `/api/auth/documents${queryString ? `?${queryString}` : ""}`,
         {
           method: "GET",
           credentials: "include",
@@ -369,12 +369,12 @@ export default function LawyerDocumentsPage() {
       setLoadingOptions(true);
 
       const [clientsResponse, casesResponse] = await Promise.all([
-        fetch("/api/auth/clients/", {
+        fetch("/api/auth/clients", {
           method: "GET",
           credentials: "include",
           cache: "no-store",
         }),
-        fetch("/api/auth/cases/", {
+        fetch("/api/auth/cases", {
           method: "GET",
           credentials: "include",
           cache: "no-store",
@@ -600,7 +600,7 @@ export default function LawyerDocumentsPage() {
 
       const csrfToken = await initializeCsrf();
 
-      const uploadUrlResponse = await fetch("/api/auth/documents/upload-url/", {
+      const uploadUrlResponse = await fetch("/api/auth/documents/upload-url", {
         method: "POST",
         credentials: "include",
         headers: {
@@ -652,7 +652,7 @@ export default function LawyerDocumentsPage() {
 
       await uploadToSignedUrl(signedUrl, selectedFile);
 
-      const finalizeResponse = await fetch("/api/auth/documents/finalize/", {
+      const finalizeResponse = await fetch("/api/auth/documents/finalize", {
         method: "POST",
         credentials: "include",
         headers: {
@@ -729,7 +729,7 @@ export default function LawyerDocumentsPage() {
       const csrfToken = await initializeCsrf();
 
       const response = await fetch(
-        `/api/auth/documents/${editingDocument.id}/`,
+        `/api/auth/documents${editingDocument.id}/`,
         {
           method: "PUT",
           credentials: "include",
@@ -800,7 +800,7 @@ export default function LawyerDocumentsPage() {
       setError("");
 
       const response = await fetch(
-        `/api/auth/documents/${documentItem.id}/download-url/`,
+        `/api/auth/documents${documentItem.id}/download-url/`,
         {
           method: "GET",
           credentials: "include",
@@ -858,7 +858,7 @@ export default function LawyerDocumentsPage() {
 
       const csrfToken = await initializeCsrf();
 
-      const response = await fetch(`/api/auth/documents/${documentItem.id}/`, {
+      const response = await fetch(`/api/auth/documents${documentItem.id}/`, {
         method: "DELETE",
         credentials: "include",
         headers: {
