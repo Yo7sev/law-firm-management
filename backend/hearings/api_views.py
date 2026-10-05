@@ -9,35 +9,50 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods
 
 from cases.models import Case
+from firms.models import FirmMembership
+from firms.services import get_user_firm_membership
 
 from .models import Hearing
 
 
+def get_active_firm(user):
+    membership = get_user_firm_membership(user=user)
+
+    if membership is None:
+        return None
+
+    if membership.status != FirmMembership.Status.ACTIVE:
+        return None
+
+    return membership.firm
+
+
 def can_manage_hearings(user):
-    return (
-        user.is_superuser
-        or user.role
-        in [
-            "super_admin",
-            "lawyer",
-            "legal_assistant",
-        ]
-    )
+    if user.is_superuser or user.role == "super_admin":
+        return True
+
+    membership = get_user_firm_membership(user=user)
+
+    if membership is None:
+        return False
+
+    return membership.status == FirmMembership.Status.ACTIVE and membership.role in {
+        FirmMembership.Role.OWNER,
+        FirmMembership.Role.LAWYER,
+        FirmMembership.Role.SECRETARY,
+    }
 
 
 def get_visible_hearings(user):
     if user.is_superuser or user.role == "super_admin":
         return Hearing.objects.all()
 
-    if user.role == "lawyer":
-        return Hearing.objects.filter(
-            case__assigned_lawyer=user,
-        )
+    firm = get_active_firm(user)
 
-    if user.role == "legal_assistant":
-        return Hearing.objects.all()
+    if firm is None:
+        return Hearing.objects.none()
 
-    return Hearing.objects.all()
+    return Hearing.objects.filter(case__firm=firm)
 
 
 def serialize_hearing(hearing):
@@ -429,6 +444,26 @@ def hearings_list_create(request):
 
     validated = validate_hearing_data(data)
 
+    active_firm = get_active_firm(user)
+
+    if active_firm is None:
+        return JsonResponse(
+            {
+                "success": False,
+                "message": "You are not a member of an active firm.",
+            },
+            status=403,
+        )
+
+    if validated["case"] is not None and validated["case"].firm_id != active_firm.id:
+        return JsonResponse(
+            {
+                "success": False,
+                "message": "The selected case does not belong to your firm.",
+            },
+            status=403,
+        )
+
     if validated["errors"]:
         return JsonResponse(
             {
@@ -577,6 +612,26 @@ def hearing_detail(request, hearing_id):
         data,
         existing_hearing=hearing,
     )
+
+    active_firm = get_active_firm(user)
+
+    if active_firm is None:
+        return JsonResponse(
+            {
+                "success": False,
+                "message": "You are not a member of an active firm.",
+            },
+            status=403,
+        )
+
+    if validated["case"] is not None and validated["case"].firm_id != active_firm.id:
+        return JsonResponse(
+            {
+                "success": False,
+                "message": "The selected case does not belong to your firm.",
+            },
+            status=403,
+        )
 
     if validated["errors"]:
         return JsonResponse(
