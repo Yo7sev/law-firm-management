@@ -236,6 +236,18 @@ type FinanceForm = {
   reference: string;
 };
 
+type HearingForm = {
+  case_id: string;
+  hearing_date: string;
+  hearing_time: string;
+  court: string;
+  judge: string;
+  purpose: string;
+  result: string;
+  next_action: string;
+  notes: string;
+};
+
 type UnknownRecord = Record<string, unknown>;
 
 const tabs: { id: Tab; label: string; icon: string }[] = [
@@ -275,6 +287,18 @@ const emptyFinanceForm: FinanceForm = {
   reference: "",
 };
 
+const emptyHearingForm: HearingForm = {
+  case_id: "",
+  hearing_date: new Date().toISOString().slice(0, 10),
+  hearing_time: "",
+  court: "",
+  judge: "",
+  purpose: "",
+  result: "",
+  next_action: "",
+  notes: "",
+};
+
 const sidebarItems = [
   { label: "Dashboard", href: "/lawyer" },
   { label: "Clients", href: "/lawyer/clients", active: true },
@@ -307,6 +331,12 @@ export default function ClientProfilePage() {
   const [caseSaving, setCaseSaving] = useState(false);
   const [caseError, setCaseError] = useState("");
   const [caseSuccess, setCaseSuccess] = useState("");
+
+  const [hearingModalOpen, setHearingModalOpen] = useState(false);
+  const [hearingForm, setHearingForm] = useState<HearingForm>(emptyHearingForm);
+  const [hearingSaving, setHearingSaving] = useState(false);
+  const [hearingError, setHearingError] = useState("");
+  const [hearingSuccess, setHearingSuccess] = useState("");
 
   const [financeModalOpen, setFinanceModalOpen] = useState(false);
   const [financeForm, setFinanceForm] = useState<FinanceForm>(emptyFinanceForm);
@@ -663,6 +693,82 @@ export default function ClientProfilePage() {
     }
   };
 
+  const openNewHearingModal = () => {
+    setHearingForm({
+      ...emptyHearingForm,
+      case_id: cases.length === 1 ? String(cases[0].id) : "",
+      hearing_date: new Date().toISOString().slice(0, 10),
+    });
+    setHearingError("");
+    setHearingSuccess("");
+    setHearingModalOpen(true);
+  };
+
+  const saveHearing = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    setHearingError("");
+    setHearingSuccess("");
+
+    if (!hearingForm.case_id) {
+      setHearingError("Please select a case.");
+      return;
+    }
+
+    if (!hearingForm.purpose.trim()) {
+      setHearingError("Hearing purpose is required.");
+      return;
+    }
+
+    setHearingSaving(true);
+
+    try {
+      const response = await fetch("/api/auth/hearings/", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          case_id: Number(hearingForm.case_id),
+          hearing_date: hearingForm.hearing_date || null,
+          hearing_time: hearingForm.hearing_time || null,
+          court: hearingForm.court.trim(),
+          judge: hearingForm.judge.trim(),
+          purpose: hearingForm.purpose.trim(),
+          result: hearingForm.result.trim(),
+          next_action: hearingForm.next_action.trim(),
+          notes: hearingForm.notes.trim(),
+        }),
+      });
+
+      const data: unknown = await response.json();
+
+      if (!response.ok || isApiFailure(data)) {
+        throw new Error(
+          getApiMessage(data) || "Unable to create the hearing.",
+        );
+      }
+
+      setHearingSuccess("Hearing created successfully.");
+      await reloadProfile();
+      setActiveTab("hearings");
+
+      window.setTimeout(() => {
+        setHearingModalOpen(false);
+        setHearingSuccess("");
+      }, 700);
+    } catch (requestError) {
+      setHearingError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Unable to create the hearing.",
+      );
+    } finally {
+      setHearingSaving(false);
+    }
+  };
+
   const openFinanceModal = () => {
     setFinanceForm({
       ...emptyFinanceForm,
@@ -948,6 +1054,14 @@ export default function ClientProfilePage() {
 
                     <button
                       type="button"
+                      onClick={openNewHearingModal}
+                      className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-500/20"
+                    >
+                      + Hearing
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={openFinanceModal}
                       className="rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-2.5 text-sm font-semibold text-blue-300 transition hover:bg-blue-500/20"
                     >
@@ -1050,7 +1164,7 @@ export default function ClientProfilePage() {
                 )}
 
                 {activeTab === "hearings" && (
-                  <HearingsTab hearings={hearings} />
+                  <HearingsTab hearings={hearings} onNewHearing={openNewHearingModal} />
                 )}
 
                 {activeTab === "documents" && (
@@ -1096,6 +1210,19 @@ export default function ClientProfilePage() {
           caseTypesLoading={caseTypesLoading}
           onClose={() => setCaseModalOpen(false)}
           onSubmit={saveCase}
+        />
+      )}
+
+      {hearingModalOpen && (
+        <HearingModal
+          form={hearingForm}
+          setForm={setHearingForm}
+          cases={cases}
+          saving={hearingSaving}
+          error={hearingError}
+          success={hearingSuccess}
+          onClose={() => setHearingModalOpen(false)}
+          onSubmit={saveHearing}
         />
       )}
 
@@ -1328,7 +1455,7 @@ function CasesTab({
     <div>
       <SectionHeading
         title="Client cases"
-        description="All legal matters associated with this client."
+        description="Full details of every legal matter associated with this client."
         action={
           <button
             type="button"
@@ -1356,80 +1483,76 @@ function CasesTab({
           }
         />
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-slate-800">
-          <div className="overflow-x-auto">
-            <table className="min-w-[900px] w-full text-left">
-              <thead className="bg-slate-950">
-                <tr className="border-b border-slate-800 text-xs uppercase tracking-wider text-slate-500">
-                  <th className="px-5 py-4 font-semibold">Case</th>
-                  <th className="px-5 py-4 font-semibold">Type</th>
-                  <th className="px-5 py-4 font-semibold">Status</th>
-                  <th className="px-5 py-4 font-semibold">Priority</th>
-                  <th className="px-5 py-4 font-semibold">Court</th>
-                  <th className="px-5 py-4 font-semibold">Opening</th>
-                  <th className="px-5 py-4 text-right font-semibold">Action</th>
-                </tr>
-              </thead>
+        <div className="space-y-5">
+          {cases.map((caseItem) => (
+            <article
+              key={caseItem.id}
+              className="rounded-2xl border border-slate-800 bg-slate-950/50 p-6 transition hover:border-slate-700 hover:bg-slate-900/70 lg:p-7"
+            >
+              <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+                <button
+                  type="button"
+                  onClick={() => onSelectCase(caseItem)}
+                  className="min-w-0 text-left"
+                >
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="text-sm font-bold uppercase tracking-wider text-blue-400">
+                      {caseItem.case_number}
+                    </span>
+                    <StatusBadge value={caseItem.status_display || caseItem.status} />
+                    <PriorityBadge value={caseItem.priority_display || caseItem.priority} />
+                  </div>
+                  <h3 className="mt-2 text-xl font-bold text-white hover:text-blue-400 sm:text-2xl">
+                    {caseItem.title || "Untitled Case"}
+                  </h3>
+                </button>
 
-              <tbody className="divide-y divide-slate-800">
-                {cases.map((caseItem) => (
-                  <tr
-                    key={caseItem.id}
-                    className="bg-slate-900/30 transition hover:bg-slate-900"
+                <div className="flex shrink-0 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onSelectCase(caseItem)}
+                    className="rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-300 transition hover:bg-slate-800 hover:text-white"
                   >
-                    <td className="px-5 py-4">
-                      <button
-                        type="button"
-                        onClick={() => onSelectCase(caseItem)}
-                        className="text-left"
-                      >
-                        <p className="font-semibold text-white hover:text-blue-400">
-                          {caseItem.case_number}
-                        </p>
-                        <p className="mt-1 max-w-[260px] truncate text-xs text-slate-500">
-                          {caseItem.title}
-                        </p>
-                      </button>
-                    </td>
+                    View Details
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onEditCase(caseItem)}
+                    className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-500"
+                  >
+                    Edit Case
+                  </button>
+                </div>
+              </div>
 
-                    <td className="px-5 py-4 text-sm text-slate-400">
-                      {getCaseTypeName(caseItem) || "Not specified"}
-                    </td>
+              <div className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                <DarkInfoCard label="Case Type" value={getCaseTypeName(caseItem) || "Not specified"} />
+                <DarkInfoCard label="Court" value={caseItem.court || "Not specified"} />
+                <DarkInfoCard label="Court Number" value={caseItem.court_number || "Not specified"} />
+                <DarkInfoCard label="Judge" value={caseItem.judge || "Not specified"} />
+                <DarkInfoCard label="Opening Date" value={formatDate(caseItem.opening_date)} />
+                <DarkInfoCard label="Closing Date" value={formatDate(caseItem.closing_date)} />
+                <DarkInfoCard label="Assigned Lawyer" value={getLawyerName(caseItem.assigned_lawyer)} />
+                <DarkInfoCard label="Created" value={formatDateTime(caseItem.created_at)} />
+              </div>
 
-                    <td className="px-5 py-4">
-                      <StatusBadge
-                        value={caseItem.status_display || caseItem.status}
-                      />
-                    </td>
+              <div className="mt-5 grid gap-5 lg:grid-cols-2">
+                <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-5">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">Opposing Party</p>
+                  <p className="mt-2 text-sm font-semibold text-slate-200">{caseItem.opposing_party || "Not provided"}</p>
+                  <p className="mt-4 text-[11px] font-semibold uppercase tracking-wider text-slate-600">Opposing Lawyer</p>
+                  <p className="mt-2 text-sm font-semibold text-slate-200">{caseItem.opposing_lawyer || "Not provided"}</p>
+                </div>
 
-                    <td className="px-5 py-4">
-                      <PriorityBadge
-                        value={caseItem.priority_display || caseItem.priority}
-                      />
-                    </td>
-
-                    <td className="px-5 py-4 text-sm text-slate-400">
-                      {caseItem.court || "Not specified"}
-                    </td>
-
-                    <td className="px-5 py-4 text-sm text-slate-400">
-                      {formatDate(caseItem.opening_date)}
-                    </td>
-
-                    <td className="px-5 py-4 text-right">
-                      <button
-                        type="button"
-                        onClick={() => onEditCase(caseItem)}
-                        className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300 transition hover:border-blue-500/50 hover:bg-slate-800 hover:text-white"
-                      >
-                        Edit
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-5">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">Description</p>
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-300">
+                    {caseItem.description || "No description has been added for this case."}
+                  </p>
+                </div>
+              </div>
+            </article>
+          ))}
         </div>
       )}
     </div>
@@ -1440,12 +1563,27 @@ function CasesTab({
    HEARINGS
 ========================================================= */
 
-function HearingsTab({ hearings }: { hearings: HearingItem[] }) {
+function HearingsTab({
+  hearings,
+  onNewHearing,
+}: {
+  hearings: HearingItem[];
+  onNewHearing: () => void;
+}) {
   return (
     <div>
       <SectionHeading
         title="Hearings"
         description="Court hearings and scheduled events connected to this client."
+        action={
+          <button
+            type="button"
+            onClick={onNewHearing}
+            className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-500"
+          >
+            + New Hearing
+          </button>
+        }
       />
 
       {hearings.length === 0 ? (
@@ -1681,6 +1819,123 @@ function TasksTab({ tasks }: { tasks: TaskItem[] }) {
         </div>
       )}
     </div>
+  );
+}
+
+function HearingModal({
+  form,
+  setForm,
+  cases,
+  saving,
+  error,
+  success,
+  onClose,
+  onSubmit,
+}: {
+  form: HearingForm;
+  setForm: React.Dispatch<React.SetStateAction<HearingForm>>;
+  cases: CaseItem[];
+  saving: boolean;
+  error: string;
+  success: string;
+  onClose: () => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  return (
+    <ModalShell
+      title="New Hearing"
+      description="Schedule a hearing for one of this client's cases."
+      onClose={onClose}
+      wide
+    >
+      <form onSubmit={onSubmit}>
+        <div className="p-6 sm:p-7">
+          {error && <ModalError message={error} />}
+          {success && <ModalSuccess message={success} />}
+
+          <div className="grid gap-5 sm:grid-cols-2">
+            <SelectField
+              label="Case"
+              required
+              value={form.case_id}
+              onChange={(value) => setForm((current) => ({ ...current, case_id: value }))}
+            >
+              <option value="">Select a case</option>
+              {cases.map((caseItem) => (
+                <option key={caseItem.id} value={caseItem.id}>
+                  {caseItem.case_number} — {caseItem.title}
+                </option>
+              ))}
+            </SelectField>
+
+            <InputField
+              label="Purpose"
+              required
+              value={form.purpose}
+              onChange={(value) => setForm((current) => ({ ...current, purpose: value }))}
+              placeholder="e.g. First hearing, appeal, review"
+            />
+
+            <InputField
+              label="Hearing Date"
+              type="date"
+              value={form.hearing_date}
+              onChange={(value) => setForm((current) => ({ ...current, hearing_date: value }))}
+            />
+
+            <InputField
+              label="Hearing Time"
+              type="time"
+              value={form.hearing_time}
+              onChange={(value) => setForm((current) => ({ ...current, hearing_time: value }))}
+            />
+
+            <InputField
+              label="Court"
+              value={form.court}
+              onChange={(value) => setForm((current) => ({ ...current, court: value }))}
+              placeholder="Court name"
+            />
+
+            <InputField
+              label="Judge"
+              value={form.judge}
+              onChange={(value) => setForm((current) => ({ ...current, judge: value }))}
+              placeholder="Judge name"
+            />
+
+            <TextAreaField
+              label="Result"
+              value={form.result}
+              onChange={(value) => setForm((current) => ({ ...current, result: value }))}
+              placeholder="Leave empty if the hearing has not happened yet"
+            />
+
+            <TextAreaField
+              label="Next Action"
+              value={form.next_action}
+              onChange={(value) => setForm((current) => ({ ...current, next_action: value }))}
+              placeholder="What needs to happen next?"
+            />
+
+            <div className="sm:col-span-2">
+              <TextAreaField
+                label="Notes"
+                value={form.notes}
+                onChange={(value) => setForm((current) => ({ ...current, notes: value }))}
+                placeholder="Additional hearing notes"
+              />
+            </div>
+          </div>
+        </div>
+
+        <ModalFooter
+          onClose={onClose}
+          saving={saving}
+          submitLabel="Create Hearing"
+        />
+      </form>
+    </ModalShell>
   );
 }
 
@@ -3819,4 +4074,58 @@ function normalizeActivity(value: unknown): ActivityItem | null {
     timestamp: getString(record.timestamp),
     date: getString(record.date),
   };
+}function SelectField({
+  label,
+  value,
+  onChange,
+  required,
+  children,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  required?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div>
+      <label className="mb-2 block text-sm font-semibold text-slate-300">
+        {label}{required && <span className="ml-1 text-blue-400">*</span>}
+      </label>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className={darkInputClass}
+      >
+        {children}
+      </select>
+    </div>
+  );
 }
+
+function TextAreaField({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <div>
+      <label className="mb-2 block text-sm font-semibold text-slate-300">{label}</label>
+      <textarea
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        rows={4}
+        className={darkInputClass}
+      />
+    </div>
+  );
+}
+
+
