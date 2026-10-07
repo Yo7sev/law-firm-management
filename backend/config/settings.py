@@ -255,9 +255,11 @@ SOCIALACCOUNT_PROVIDERS = {
 # LOGIN / LOGOUT
 # ============================================================
 
-LOGIN_REDIRECT_URL = "/dashboard/"
+SOCIALACCOUNT_LOGIN_ON_GET = True
 
-LOGOUT_REDIRECT_URL = "/accounts/login/"
+LOGIN_REDIRECT_URL = "http://127.0.0.1:3000/lawyer"
+
+LOGOUT_REDIRECT_URL = "http://127.0.0.1:3000/login"
 
 
 # ============================================================

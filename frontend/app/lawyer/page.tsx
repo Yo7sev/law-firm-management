@@ -549,12 +549,43 @@ export default function LawyerDashboard() {
 
   async function handleLogout() {
     try {
-      await fetch("/api/auth/logout/", {
+      const csrfResponse = await fetch("/api/auth/csrf/", {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      if (!csrfResponse.ok) {
+        throw new Error(
+          `CSRF request failed with status ${csrfResponse.status}`,
+        );
+      }
+
+      const csrfData = await csrfResponse.json();
+
+      if (!csrfData.csrfToken) {
+        throw new Error("CSRF token was not returned.");
+      }
+
+      const response = await fetch("/api/auth/logout/", {
         method: "POST",
         credentials: "include",
+        headers: {
+          "X-CSRFToken": csrfData.csrfToken,
+        },
       });
-    } finally {
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+
+        throw new Error(
+          data?.message || `Logout failed with status ${response.status}`,
+        );
+      }
+
       router.push("/login");
+    } catch (error) {
+      console.error("Logout error:", error);
     }
   }
 

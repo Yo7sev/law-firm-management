@@ -74,6 +74,10 @@ export default function LoginPage() {
     }
   }
 
+  function handleGoogleLogin() {
+    window.location.href = "/api/auth/google/login/";
+  }
+
   return (
     <main className="min-h-screen bg-slate-950 text-white">
       <div className="flex min-h-screen">
@@ -95,9 +99,8 @@ export default function LoginPage() {
                   <p className="text-sm font-semibold tracking-wide text-white">
                     LawFirm
                   </p>
-                  <p className="text-xs text-slate-500">
-                    Management System
-                  </p>
+
+                  <p className="text-xs text-slate-500">Management System</p>
                 </div>
               </div>
             </div>
@@ -154,9 +157,8 @@ export default function LoginPage() {
                 <p className="text-sm font-semibold tracking-wide text-white">
                   LawFirm
                 </p>
-                <p className="text-xs text-slate-500">
-                  Management System
-                </p>
+
+                <p className="text-xs text-slate-500">Management System</p>
               </div>
             </div>
 
@@ -249,18 +251,15 @@ export default function LoginPage() {
                   <input
                     type="checkbox"
                     checked={rememberMe}
-                    onChange={(event) =>
-                      setRememberMe(event.target.checked)
-                    }
+                    onChange={(event) => setRememberMe(event.target.checked)}
                     disabled={loading}
                     className="h-4 w-4 rounded border-slate-700 bg-slate-900 accent-blue-500"
                   />
-
                   Remember me
                 </label>
               </div>
 
-              {/* Submit */}
+              {/* Sign in */}
               <button
                 type="submit"
                 disabled={loading}
@@ -276,6 +275,49 @@ export default function LoginPage() {
                 )}
               </button>
             </form>
+
+            {/* Google login */}
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-800" />
+              </div>
+
+              <div className="relative flex justify-center">
+                <span className="bg-slate-950 px-3 text-xs text-slate-500">
+                  OR
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              disabled={loading}
+              className="flex w-full items-center justify-center gap-3 rounded-xl border border-slate-800 bg-white px-4 py-3.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/40 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  fill="#4285F4"
+                  d="M21.35 12.23c0-.79-.07-1.55-.2-2.27H12v4.3h5.24a4.48 4.48 0 0 1-1.94 2.94v2.45h3.14c1.84-1.69 2.91-4.18 2.91-7.42Z"
+                />
+
+                <path
+                  fill="#34A853"
+                  d="M12 21.75c2.63 0 4.84-.87 6.45-2.36l-3.14-2.45c-.87.58-1.98.93-3.31.93-2.55 0-4.71-1.72-5.49-4.04H3.27v2.53A9.75 9.75 0 0 0 12 21.75Z"
+                />
+
+                <path
+                  fill="#FBBC05"
+                  d="M6.51 13.83A5.86 5.86 0 0 1 6.2 12c0-.64.11-1.26.31-1.83V7.64H3.27A9.74 9.74 0 0 0 2.25 12c0 1.57.38 3.05 1.02 4.36l3.24-2.53Z"
+                />
+
+                <path
+                  fill="#EA4335"
+                  d="M12 6.13c1.43 0 2.71.49 3.72 1.45l2.79-2.79C16.84 3.25 14.63 2.25 12 2.25a9.75 9.75 0 0 0-8.73 5.39l3.24 2.53C7.29 7.85 9.45 6.13 12 6.13Z"
+                />
+              </svg>
+              Continue with Google
+            </button>
 
             <div className="mt-8 border-t border-slate-900 pt-6 text-center">
               <p className="text-xs leading-5 text-slate-600">
