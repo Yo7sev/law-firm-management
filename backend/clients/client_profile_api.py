@@ -99,8 +99,8 @@ def serialize_hearing(hearing):
             if hearing.hearing_time
             else None
         ),
-        "court": hearing.court,
-        "judge": hearing.judge,
+        "court": hearing.court or hearing.case.court,
+        "judge": hearing.judge or hearing.case.judge,
         "purpose": hearing.purpose,
         "result": hearing.result,
         "next_action": hearing.next_action,

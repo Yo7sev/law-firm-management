@@ -1946,21 +1946,6 @@ function HearingModal({
                 setForm((current) => ({ ...current, hearing_time: value }))
               }
             />
-
-            <InputField
-              label="Court"
-              value={form.court}
-              onChange={() => {}}
-              readOnly
-            />
-
-            <InputField
-              label="Judge"
-              value={form.judge}
-              onChange={() => {}}
-              readOnly
-            />
-
             <TextAreaField
               label="Result"
               value={form.result}
